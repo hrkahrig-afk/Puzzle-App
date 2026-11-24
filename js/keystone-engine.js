@@ -377,7 +377,8 @@ export function rewardScale(meta) {
   return Math.max(5, Math.floor(w * (1 + w / 25)) * tierPow('shards', t) * mult(meta, 'shard'));
 }
 // Make sure daily/weekly missions exist for "now"; returns meta.missions.
-const MISSION_VER = 2;
+const MISSION_VER = 3;
+export const MISSIONS_PER_STYLE = 2; // 5 styles × 2 = 10 missions per set
 function makeMissions(meta, seed, weekly) {
   const t = meta.maxTier || 1;
   const bw = Math.max(12, (meta.best || {})[t] || (meta.best || {})[t - 1] || 12);
@@ -385,12 +386,14 @@ function makeMissions(meta, seed, weekly) {
   let x = seed;
   for (const cat of Object.keys(MISSION_CATS)) {
     const pool = MISSION_POOL.filter((m) => m.cat === cat && (!m.need || m.need(meta)));
-    x = (Math.imul(x, 1664525) + 1013904223) >>> 0;
-    const d = pool[x % pool.length];
-    const m = { id: d.id, cat, prog: 0, claimed: false };
-    if (d.type === 'count') { m.key = d.key; m.n = weekly ? d.wn : d.n; }
-    else { m.n = weekly ? WEEKLY_TIMES : 1; if (d.f) m.w = Math.max(8, Math.round(bw * d.f)); }
-    out.push(m);
+    for (let k = 0; k < MISSIONS_PER_STYLE && pool.length; k++) {
+      x = (Math.imul(x, 1664525) + 1013904223) >>> 0;
+      const d = pool.splice(x % pool.length, 1)[0];
+      const m = { id: d.id, cat, prog: 0, claimed: false };
+      if (d.type === 'count') { m.key = d.key; m.n = weekly ? d.wn : d.n; }
+      else { m.n = weekly ? WEEKLY_TIMES : 1; if (d.f) m.w = Math.max(8, Math.round(bw * d.f)); }
+      out.push(m);
+    }
   }
   return out;
 }
@@ -412,8 +415,8 @@ export function missionText(m) {
 }
 export const missionCat = (m) => MISSION_CATS[m.cat] || '';
 // each mission pays a little; clearing a whole set pays a bonus on top
-export const missionReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 0.6 : 0.15));
-export const sweepReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 1.5 : 0.4));
+export const missionReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 0.36 : 0.09));
+export const sweepReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 2 : 0.5));
 export function sweepStatus(meta, kind) {
   const M = refreshMissions(meta);
   const list = M[kind];
