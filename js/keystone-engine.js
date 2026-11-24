@@ -587,7 +587,7 @@ export function step(run, meta, dt, rand = Math.random) {
       p.done = true;
       if (e && e.hp > 0) {
         damage(run, meta, s, e, p.dmg, events, rand);
-        events.push({ t: 'hit', x: e.x, y: e.y, dmg: p.dmg, crit: p.crit });
+        events.push({ t: 'hit', id: e.id, x: e.x, y: e.y, dmg: p.dmg, crit: p.crit });
         if (p.bounces > 0) {
           let next = null, nd = 160;
           for (const o of run.enemies) {
