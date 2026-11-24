@@ -29,6 +29,7 @@ function fmtStat(u, v) {
     case 'regen': return fmtNum(v) + '/s';
     case 'wave': return fmtNum(v) + '×wave';
     case 'bounce': return v + (v === 1 ? ' bounce' : ' bounces');
+    case 'wallpct': return Math.round(v * 100) + '% of health';
     default: return fmtNum(v);
   }
 }
@@ -58,6 +59,13 @@ const RARITY_COLOR = { common: '#8a94a6', rare: '#4f8fe0', epic: '#b26ee0' };
 function relicGlyph(r, owned) {
   const el = h('div', { class: 'ks-relic-glyph' + (owned ? '' : ' unknown'), style: { '--rc': RARITY_COLOR[r.rarity] } });
   el.innerHTML = owned ? `<svg viewBox="0 0 24 24"><polygon points="12,2 21,8 18,20 6,20 3,8" fill="currentColor" opacity=".9"/><polygon points="12,6 16,9 14.5,16 9.5,16 8,9" fill="#fff" opacity=".35"/></svg>` : '?';
+  return el;
+}
+
+function gearGlyph(id, r) {
+  const el = h('div', { class: 'ks-relic-glyph', style: { '--rc': K.RARITY_COLORS[r] } });
+  const shapes = { g_barrel: '<rect x="4" y="9" width="16" height="6" rx="2"/>', g_clock: '<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2" stroke="#fff" stroke-width="1.6" fill="none"/>', g_scope: '<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M12 3v18M3 12h18" stroke="currentColor" stroke-width="1.4"/>', g_plate: '<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>', g_heart: '<path d="M12 20s-7-4.4-7-9.5A4 4 0 0 1 12 8a4 4 0 0 1 7 2.5C19 15.6 12 20 12 20z"/>', g_purse: '<circle cx="12" cy="13" r="7"/><rect x="9" y="3" width="6" height="4" rx="1"/>', g_prism: '<polygon points="12,3 21,20 3,20"/>', g_fang: '<path d="M6 4h12l-6 17z"/>', g_stone: '<rect x="4" y="6" width="16" height="12" rx="2"/>', g_glass: '<path d="M7 3h10l-4 9 4 9H7l4-9z"/>', g_crown: '<path d="M3 18l2-10 4 5 3-7 3 7 4-5 2 10z"/>', g_coin: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4" fill="#fff" opacity=".35"/>' };
+  el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">${shapes[id] || '<circle cx="12" cy="12" r="8"/>'}</svg>`;
   return el;
 }
 
@@ -136,20 +144,28 @@ function mountLobby(view, ui) {
       h('p', { class: 'hint ks-tier-hint' }, nextHint),
       h('div', { class: 'card-actions' },
         run
-          ? h('button', { class: 'btn btn-primary', style: { '--c': 'var(--idle)' }, onclick: () => ui.go('#/keystone/run') }, icon('play'), `Resume T${run.tier || 1} · W${run.wave}`)
+          ? h('button', { class: 'btn btn-primary', style: { '--c': 'var(--idle)' }, onclick: () => ui.go('#/keystone/run') }, icon('play'), `Resume · W${run.wave}`)
           : h('button', { class: 'btn btn-primary', style: { '--c': 'var(--idle)' }, onclick: () => ui.go('#/keystone/run') }, icon('play'), `Start tier ${meta.tier}`),
         run ? h('button', { class: 'btn btn-soft', onclick: abandon }, 'End run') : null),
     );
 
     // ----- section tabs -----
     const labBusy = (meta.lab || []).length;
-    const tabs = h('div', { class: 'seg ks-sections' }, ...[['workshop', 'Workshop'], ['research', `Research${labBusy ? ` · ${labBusy}` : ''}`], ['relics', 'Relics'], ['abilities', 'Abilities']].map(([id, label]) =>
-      h('button', { 'aria-pressed': String(section === id), onclick: () => { section = id; store.set('ks:section', id); draw(); } }, label)));
+    const claimable = K.unclaimedCount(meta);
+    const tabs = h('div', { class: 'ks-sections' }, ...[
+      ['workshop', 'Workshop'], ['research', `Research${labBusy ? ` · ${labBusy}` : ''}`], ['gear', 'Gear'],
+      ['missions', claimable ? `Missions · ${claimable}` : 'Missions'], ['build', 'Build'], ['abilities', 'Abilities'], ['relics', 'Relics'], ['records', 'Records'],
+    ].map(([id, label]) =>
+      h('button', { class: 'chip' + (id === 'missions' && claimable ? ' ks-dot' : ''), 'aria-pressed': String(section === id), onclick: () => { section = id; store.set('ks:section', id); draw(); } }, label)));
 
     let body;
     if (section === 'workshop') body = drawWorkshop();
     else if (section === 'research') body = drawResearch();
     else if (section === 'relics') body = drawRelics();
+    else if (section === 'gear') body = drawGear();
+    else if (section === 'missions') body = drawMissions();
+    else if (section === 'build') body = drawBuild();
+    else if (section === 'records') body = drawRecords();
     else body = drawAbilities();
 
     const rate = K.offlineRate(meta);
@@ -163,7 +179,7 @@ function mountLobby(view, ui) {
       const cost = K.permCost(meta, u.id);
       return h('div', { class: 'set-item' },
         h('div', { class: 'lbl' }, u.name, h('span', { class: 'ks-lvl' }, `Lv ${L}${u.max ? '/' + u.max : ''}`), h('small', {}, `${u.desc} per level · now ${permNow(u, meta)}`)),
-        cost === Infinity ? h('span', { class: 'ks-owned' }, 'Max') : costBtn(cost, () => { meta.shards -= cost; meta.perm[u.id] = L + 1; haptic(10); save(); }));
+        cost === Infinity ? h('span', { class: 'ks-owned' }, 'Max') : costBtn(cost, () => { meta.shards -= cost; meta.perm[u.id] = L + 1; K.track(meta, 'workshop', 1); haptic(10); save(); }));
     }));
   }
 
@@ -249,6 +265,111 @@ function mountLobby(view, ui) {
     );
   }
 
+
+  // ----- Gear -----
+  function drawGear() {
+    const slots = K.gearSlots(meta);
+    meta.loadout = (meta.loadout || []).filter((id) => K.gearRarity(meta, id) >= 0).slice(0, slots);
+    const eq = h('div', { class: 'ks-loadout' });
+    for (let k = 0; k < 6; k++) {
+      const id = meta.loadout[k];
+      if (k >= slots) { eq.append(h('div', { class: 'ks-gslot locked' }, h('small', {}, `Tier ${[0, 0, 3, 5, 8, 12][k]}`))); continue; }
+      if (!id) { eq.append(h('div', { class: 'ks-gslot empty' }, h('small', {}, 'Empty'))); continue; }
+      const r = K.gearRarity(meta, id);
+      eq.append(h('button', { class: 'ks-gslot', style: { '--rc': K.RARITY_COLORS[r] }, onclick: () => { meta.loadout = meta.loadout.filter((x) => x !== id); save(); } },
+        gearGlyph(id, r), h('small', {}, K.GEAR_BY_ID[id].name)));
+    }
+    const list = h('div', { class: 'set-group' }, ...K.GEAR.map((g) => {
+      const r = K.gearRarity(meta, g.id);
+      if (r < 0) return h('div', { class: 'set-item dim' }, h('div', { class: 'ks-ab-ico' }, '?'), h('div', { class: 'lbl' }, '???', h('small', {}, 'Not found yet · Wardens and milestones drop gear')));
+      const c = meta.gear[g.id];
+      const on = meta.loadout.includes(g.id);
+      const nextR = r + 1 < K.RARITIES.length ? `${c[r]}/${K.MERGE} toward ${K.RARITIES[r + 1]}` : 'Highest rarity';
+      return h('div', { class: 'set-item' },
+        gearGlyph(g.id, r),
+        h('div', { class: 'lbl' }, g.name, h('span', { class: 'ks-rar', style: { color: K.RARITY_COLORS[r] } }, K.RARITIES[r]),
+          h('small', {}, `${g.desc(g.v[r])} · ${nextR}`)),
+        h('button', { class: 'btn ' + (on ? 'btn-soft' : 'ks-cost'), style: { flex: 'none' }, disabled: !on && meta.loadout.length >= slots, onclick: () => {
+          meta.loadout = on ? meta.loadout.filter((x) => x !== g.id) : [...meta.loadout, g.id];
+          haptic(8); save();
+        } }, on ? 'Unequip' : 'Equip'));
+    }));
+    return h('div', {},
+      h('p', { class: 'hint' }, `Equip up to ${slots} pieces. Three copies of a rarity merge into the next rarity automatically.`),
+      eq, list);
+  }
+
+  // ----- Missions & milestones -----
+  function drawMissions() {
+    const M = K.refreshMissions(meta);
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (7 - ((now.getDay() + 6) % 7)));
+    const row = (text, prog, n, done, claimed, reward, onClaim) => h('div', { class: 'set-item' + (claimed ? ' dim' : '') },
+      h('div', { class: 'lbl' }, text,
+        h('div', { class: 'ks-bar', style: { marginTop: '6px' } }, h('i', { style: { width: `${Math.min(100, (prog / n) * 100)}%` } })),
+        h('small', {}, `${fmtNum(Math.min(prog, n))} / ${fmtNum(n)} · reward ${fmtNum(reward)} shards`)),
+      claimed ? h('span', { class: 'ks-owned' }, '✓') : h('button', { class: 'btn ks-cost' + (done ? '' : ' off'), style: { flex: 'none' }, disabled: !done, onclick: onClaim }, 'Claim'));
+    const list = (kind) => M[kind].map((m, i) => row(K.missionText(m), m.prog, m.n, m.prog >= m.n, m.claimed, K.missionReward(meta, kind), () => {
+      const got = K.claimMission(meta, kind, i);
+      if (got) { toast(`+${fmtNum(got)} shards`); haptic(15); save(); }
+    }));
+    const ms = K.MILESTONES.filter((m) => !M.done[m.id]).slice(0, 8);
+    return h('div', {},
+      h('div', { class: 'menu-cap' }, `Daily · resets in ${fmtDur((midnight - now) / 1000)}`), h('div', { class: 'set-group' }, ...list('daily')),
+      h('div', { class: 'menu-cap' }, `Weekly · resets in ${fmtDur((monday - now) / 1000)}`), h('div', { class: 'set-group' }, ...list('weekly')),
+      h('div', { class: 'menu-cap' }, 'Milestones'),
+      h('div', { class: 'set-group' }, ...ms.map((m) => {
+        const v = K.milestoneValue(meta, m.key);
+        return row(m.text + (m.gear ? ' · + gear' : ''), v, m.n, v >= m.n, false, K.milestoneReward(meta, m), () => {
+          const res = K.claimMilestone(meta, m.id);
+          if (res) { toast(`+${fmtNum(res.shards)} shards${res.gear ? ` · ${K.RARITIES[res.gear.rarity]} ${K.GEAR_BY_ID[res.gear.id].name}` : ''}`, 2600); haptic(15); save(); }
+        });
+      })),
+      h('p', { class: 'hint' }, `${Object.keys(M.done).length} of ${K.MILESTONES.length} milestones complete`));
+  }
+
+  // ----- Build: schematics, auto-buy, perks -----
+  function drawBuild() {
+    const choose = (id) => { meta.schematic = id; if (id === 'custom' && !meta.customSchematic) meta.customSchematic = { ...K.SCHEMATICS[0].w }; save(); };
+    const opts = [...K.SCHEMATICS, { id: 'custom', name: 'Custom', desc: 'Set your own priorities below' }];
+    const group = h('div', { class: 'set-group' }, ...opts.map((x) => h('button', { class: 'set-item ks-choice' + (meta.schematic === x.id ? ' on' : ''), onclick: () => choose(x.id) },
+      h('span', { class: 'ks-radio' }), h('div', { class: 'lbl', style: { textAlign: 'left' } }, x.name, h('small', {}, x.desc)))));
+    const toggles = h('div', { class: 'set-group' },
+      h('div', { class: 'set-item' }, h('div', { class: 'lbl' }, 'Auto-buy upgrades', h('small', {}, 'Spend coins during runs following your schematic')), toggleEl(!!meta.autoBuy, (v) => { meta.autoBuy = v; save(false); })),
+      h('div', { class: 'set-item' }, h('div', { class: 'lbl' }, 'Pick perks for me', h('small', {}, 'Choose perks automatically to suit your schematic')), toggleEl(meta.autoPerk !== false, (v) => { meta.autoPerk = v; save(false); })));
+    let editor = null;
+    if (meta.schematic === 'custom') {
+      const w = meta.customSchematic || (meta.customSchematic = { ...K.SCHEMATICS[0].w });
+      editor = h('div', {}, h('div', { class: 'menu-cap' }, 'Custom priorities (0 = never buy)'),
+        h('div', { class: 'set-group' }, ...K.RUN_UPGRADES.map((u) => {
+          const out = h('output', {}, String(w[u.id] || 0));
+          const set = (d) => { w[u.id] = Math.max(0, Math.min(4, (w[u.id] || 0) + d)); out.textContent = String(w[u.id]); saveMeta(meta); };
+          return h('div', { class: 'set-item' + ((u.tier || 1) > meta.maxTier ? ' dim' : '') },
+            h('div', { class: 'lbl' }, u.name, (u.tier || 1) > meta.maxTier ? h('small', {}, `Unlocks at tier ${u.tier}`) : null),
+            h('div', { class: 'mini-step' }, h('button', { onclick: () => set(-1), 'aria-label': 'Lower' }, '−'), out, h('button', { onclick: () => set(1), 'aria-label': 'Higher' }, '+')));
+        })));
+    }
+    return h('div', {}, h('div', { class: 'menu-cap' }, 'Schematic'), group, h('div', { class: 'menu-cap' }, 'Automation'), toggles, editor);
+  }
+
+  // ----- Records -----
+  function drawRecords() {
+    const R = meta.records || {};
+    const rows = [
+      ['Runs finished', fmtNum(meta.runs || 0)], ['Enemies defeated', fmtNum(R.kills || 0)], ['Wardens defeated', fmtNum(R.wardens || 0)],
+      ['Waves cleared', fmtNum(R.waves || 0)], ['Abilities used', fmtNum(R.abilities || 0)], ['Perks chosen', fmtNum(R.perks || 0)],
+      ['Shards earned from runs', fmtNum(R.shardsEarned || 0)], ['Best single run', `${fmtNum(R.bestRunShards || 0)} shards`],
+      ['Longest run', fmtTime(R.longestRun || 0)], ['Time defending', fmtDur(R.playTime || 0)],
+    ];
+    const best = Object.entries(meta.best || {}).sort((a, b) => +a[0] - +b[0]);
+    return h('div', {},
+      h('div', { class: 'set-group' }, ...rows.map(([k, v]) => h('div', { class: 'set-item' }, h('div', { class: 'lbl' }, k), h('b', {}, v)))),
+      h('div', { class: 'menu-cap' }, 'Best wave per tier'),
+      h('div', { class: 'ks-tiers' }, ...best.map(([t, w]) => h('div', {}, h('small', {}, `Tier ${t}`), h('b', {}, String(w))))),
+      h('p', { class: 'hint' }, 'Records count from this update onward, except runs and best waves.'));
+  }
+
   function costBtn(cost, onBuy, blocked = false) {
     const can = meta.shards >= cost && !blocked;
     return h('button', { class: 'btn ks-cost' + (can ? '' : ' off'), style: { flex: 'none' }, disabled: !can, onclick: () => { if (meta.shards >= cost) onBuy(); } },
@@ -263,8 +384,7 @@ function mountLobby(view, ui) {
       h('div', { class: 'row' }, h('button', { class: 'btn btn-soft', onclick: () => close() }, 'Cancel'),
         h('button', { class: 'btn btn-primary', style: { '--c': 'var(--idle)' }, onclick: () => {
           const run = K.resume(r, meta);
-          const got = K.shardsForRun(run, meta);
-          meta.shards += got; meta.runs = (meta.runs || 0) + 1;
+          const got = K.finishRun(run, meta);
           clearRun(); save(); close(); toast(`+${fmtNum(got)} shards`);
         } }, 'End & collect'))));
   }
@@ -305,6 +425,10 @@ function showHelp() {
     h('p', {}, h('b', {}, 'Tiers: '), `reach wave ${K.TIER_UNLOCK_WAVE} to unlock the next tier. Higher tiers have tougher enemies that ramp up over the first waves, new enemy types, and bigger rewards.`),
     h('p', {}, h('b', {}, 'Shards'), ' come from finished runs and from time away. Spend them in the Workshop (permanent upgrades) and the Research lab (bigger upgrades that take real time).'),
     h('p', {}, h('b', {}, 'Relics'), ' sometimes drop from Wardens and give small permanent bonuses. Duplicates level them up.'),
+    h('p', {}, h('b', {}, 'Perks: '), `every ${K.PERK_EVERY} waves you choose 1 of 3 perks for the rest of the run (or let them be picked for you).`),
+    h('p', {}, h('b', {}, 'Gear'), ' drops from Wardens and milestones. Equip a few pieces before a run; three of a kind merge into a rarer one.'),
+    h('p', {}, h('b', {}, 'Build: '), 'choose a schematic and switch on Auto-buy to have upgrades bought for you toward that build.'),
+    h('p', {}, h('b', {}, 'Missions'), ' refresh daily and weekly; milestones are one-time goals. All pay shards.'),
     h('p', {}, h('b', {}, 'Enemies: '), 'Blocks are steady, Darts fast, Brutes tough, Spitters shoot from range. Later tiers add Bulwarks (shielded until half health), Splitters, Menders (heal others), Phantoms (blink closer) and gold-edged elites.'),
     h('p', { class: 'hint' }, 'Leaving the screen pauses your run; it picks up at the start of the same wave.')));
 }
@@ -333,7 +457,8 @@ function mountRun(view, ui) {
   let qty = store.get('ks:qty', 1);
 
   // ----- header -----
-  const speedBtn = h('button', { class: 'chip ks-speed', onclick: () => { speed = speed >= 3 ? 1 : speed + 1; store.set('ks:speed', speed); speedBtn.textContent = speed + '×'; } }, speed + '×');
+  speed = Math.min(speed, K.maxSpeed(meta));
+  const speedBtn = h('button', { class: 'chip ks-speed', onclick: () => { speed = speed >= K.maxSpeed(meta) ? 1 : speed + 1; store.set('ks:speed', speed); speedBtn.textContent = speed + '×'; } }, speed + '×');
   ui.setTitle(h('span', {}, 'Keystone', h('span', { class: 'mode-pill' }, `Tier ${run.tier}`)));
   ui.setActions([speedBtn, iconBtn('pause', 'Pause', openPause)]);
 
@@ -343,10 +468,12 @@ function mountRun(view, ui) {
   const coinsEl = h('b', {});
   const hpBar = h('i', {});
   const hpTxt = h('span', {});
+  const wallBar = h('i', {});
+  const wallWrap = h('div', { class: 'ks-bar wall' }, wallBar);
   const hud = h('div', { class: 'ks-hud' },
     h('div', { class: 'ks-hud-wave' }, h('div', {}, 'Wave ', waveLbl), h('div', { class: 'ks-bar' }, waveBar)),
     h('div', { class: 'ks-hud-coins' }, h('span', { class: 'ks-coin' }), coinsEl),
-    h('div', { class: 'ks-hud-hp' }, h('div', { class: 'ks-bar hp' }, hpBar), hpTxt));
+    h('div', { class: 'ks-hud-hp' }, h('div', { class: 'ks-bar hp' }, hpBar), wallWrap, hpTxt));
 
   // ----- canvas -----
   const canvas = h('canvas', { class: 'ks-canvas' });
@@ -365,7 +492,7 @@ function mountRun(view, ui) {
   }
   if (meta.autocast) {
     const auto = h('button', { class: 'ks-ab ks-auto' + (meta.autoOn !== false ? ' on' : ''), onclick: () => { meta.autoOn = meta.autoOn === false; auto.classList.toggle('on', meta.autoOn); saveMeta(meta); toast(meta.autoOn ? 'Autocast on' : 'Autocast off'); } },
-      h('span', { class: 'ks-ab-ring' }), abIcon('auto'), h('small', {}, 'Auto'));
+      h('span', { class: 'ks-ab-ring' }), abIcon('auto'), h('small', {}, 'Autocast'));
     abRow.append(auto);
   }
 
@@ -416,9 +543,33 @@ function mountRun(view, ui) {
   }
   drawTabs();
   buildList();
+  const schemName = () => (meta.schematic === 'custom' ? 'Custom' : (K.SCHEMATICS.find((x) => x.id === meta.schematic) || K.SCHEMATICS[0]).name);
+  const autoChip = h('button', { class: 'chip ks-autobuy' + (meta.autoBuy ? ' on' : ''), onclick: () => {
+    meta.autoBuy = !meta.autoBuy; saveMeta(meta);
+    autoChip.classList.toggle('on', meta.autoBuy);
+    toast(meta.autoBuy ? `Auto-buy on · ${schemName()} schematic` : 'Auto-buy off');
+  } }, 'Auto-buy');
   const panel = h('div', { class: 'ks-panel' }, h('div', { class: 'ks-panel-top' }, tabs, qtySeg), list);
+  ui.setActions([autoChip, speedBtn, iconBtn('pause', 'Pause', openPause)]);
+  // perk offer (non-blocking; auto-picked when the next offer arrives)
+  const offerEl = h('div', { class: 'ks-offer', hidden: true });
+  let offerKey = '';
+  function drawOffer() {
+    const key = run.offer ? run.offer.join(',') : '';
+    if (key === offerKey) return;
+    offerKey = key;
+    offerEl.hidden = !run.offer;
+    if (!run.offer) return;
+    offerEl.replaceChildren(h('div', { class: 'ks-offer-title' }, 'Choose a perk'),
+      h('div', { class: 'ks-offer-row' }, ...run.offer.map((id) => {
+        const pk = K.PERK_BY_ID[id];
+        const n = (run.perks || {})[id] || 0;
+        return h('button', { class: 'ks-perk', onclick: () => { if (K.choosePerk(run, id)) { K.track(meta, 'perks', 1); haptic(15); banners.push({ text: pk.name, sub: pk.desc, t: 0 }); drawOffer(); refreshList(); } } },
+          h('b', {}, pk.name), h('small', {}, pk.desc), n ? h('span', { class: 'ks-lvl' }, `owned ×${n}`) : null);
+      })));
+  }
 
-  const root = h('div', { class: 'ks-run' }, hud, stage, abRow.childNodes.length ? abRow : null, panel);
+  const root = h('div', { class: 'ks-run' }, hud, stage, offerEl, abRow.childNodes.length ? abRow : null, panel);
   view.append(root);
 
   // ----- sizing -----
@@ -443,6 +594,7 @@ function mountRun(view, ui) {
   const hitFlash = new Map(); // enemy id -> seconds of white flash left
   const muzzle = [];          // recent tower shots: { a, t }
   let hurtFlash = 0;
+  let wallFlash = 0;
   let shake = 0;
   let clock = 0;
   const pendingEvents = [];
@@ -484,6 +636,9 @@ function mountRun(view, ui) {
         coinsHome(e.x, e.y, T.boss ? 14 : e.elite ? 4 : 1 + (Math.random() < 0.5 ? 1 : 0));
         hitFlash.delete(e.id);
         if (T.boss) { haptic(25); kick(7); banners.push({ text: 'Warden defeated!', t: 0 }); }
+      } else if (e.t === 'hit' && e.sup) {
+        hitFlash.set(e.id, 0.12);
+        sparks(e.x, e.y, '#f3c4ff', 10, 200, 0.35); ringFx(e.x, e.y, '#e8a6ff', 26, 0.3, 4); glowFx(e.x, e.y, '#e8a6ff', 30, 0.25);
       } else if (e.t === 'hit') {
         hitFlash.set(e.id, 0.08);
         sparks(e.x, e.y, e.crit ? '#ffe27a' : C.idle, e.crit ? 5 : 2, e.crit ? 140 : 80, 0.25);
@@ -516,6 +671,15 @@ function mountRun(view, ui) {
         ringFx(0, 0, C.idle, K.R * 0.9, 0.8, 2);
         saveRun(run);
       } else if (e.t === 'over') { kick(8); sparks(0, 0, C.idle, 60, 260, 0.9); endRun(); }
+      else if (e.t === 'wallhit') { wallFlash = 0.15; if (e.broke) { ringFx(0, 0, '#cfe3f7', K.TOWER_R + 40, 0.5, 4); sparks(0, 0, '#cfe3f7', 18, 160, 0.5); } }
+      else if (e.t === 'laststand') { banners.push({ text: 'Last stand!', sub: 'The keep refuses to fall', t: 0, gold: true }); ringFx(0, 0, '#ffd34d', 160, 0.8, 6); kick(6); haptic([30, 50, 30]); }
+      else if (e.t === 'gear') {
+        const g = K.GEAR_BY_ID[e.id];
+        banners.push({ text: 'Gear found!', sub: `${K.RARITIES[e.rarity]} ${g.name}`, t: 0, gold: true });
+        sparks(e.x, e.y, K.RARITY_COLORS[e.rarity], 30, 180, 0.7); ringFx(e.x, e.y, K.RARITY_COLORS[e.rarity], 70, 0.6, 4);
+        haptic([20, 40, 20]); saveMeta(meta);
+      } else if (e.t === 'perks') { if (!meta.autoPerk) haptic(15); }
+      else if (e.t === 'perkauto') { const last = run.stats.perks[run.stats.perks.length - 1]; if (last) banners.push({ text: K.PERK_BY_ID[last].name, sub: K.PERK_BY_ID[last].desc, t: 0 }); }
     }
   }
 
@@ -772,6 +936,21 @@ function mountRun(view, ui) {
     ctx.strokeStyle = C.idle; ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
     for (let k = 0; k < 6; k++) { ctx.beginPath(); ctx.arc(0, 0, K.TOWER_R + 17, (k / 6) * Math.PI * 2, (k / 6) * Math.PI * 2 + 0.55); ctx.stroke(); }
     ctx.restore(); ctx.globalAlpha = 1;
+    // wall: a ring of segments that thins as it takes damage
+    if (s.wallMax > 0 && run.wall > 0) {
+      const f = run.wall / s.wallMax;
+      const segs = 12;
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = wallFlash > 0 ? '#ffffff' : '#cfe3f7';
+      ctx.globalAlpha = 0.35 + 0.55 * f;
+      for (let k = 0; k < segs; k++) {
+        if (k / segs >= f) break;
+        const a0 = (k / segs) * Math.PI * 2 - Math.PI / 2;
+        ctx.beginPath(); ctx.arc(0, 0, K.TOWER_R + 30, a0 + 0.04, a0 + (Math.PI * 2) / segs - 0.04); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (run.invuln > 0) { ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.globalAlpha = 0.5 + 0.5 * Math.sin(clock * 20); ctx.beginPath(); ctx.arc(0, 0, K.TOWER_R + 14, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
     // health ring
     ctx.lineWidth = 4;
     ctx.strokeStyle = C.bg2; ctx.beginPath(); ctx.arc(0, 0, K.TOWER_R + 9, 0, Math.PI * 2); ctx.stroke();
@@ -792,7 +971,7 @@ function mountRun(view, ui) {
 
     // banners (screen space)
     ctx.textAlign = 'center';
-    for (const b of banners) {
+    for (const b of banners.slice(0, 1)) {
       const a = b.t < 0.25 ? b.t / 0.25 : Math.max(0, 1 - (b.t - 1.3) / 0.5);
       const pop = b.t < 0.25 ? 0.85 + 0.15 * (b.t / 0.25) : 1;
       ctx.globalAlpha = Math.min(1, a);
@@ -818,6 +997,9 @@ function mountRun(view, ui) {
     hpBar.style.width = `${Math.max(0, (run.hp / s.maxHp) * 100)}%`;
     hpBar.classList.toggle('low', run.hp / s.maxHp < 0.35);
     hpTxt.textContent = `${fmtNum(run.hp)} / ${fmtNum(s.maxHp)}`;
+    wallWrap.style.display = s.wallMax > 0 ? '' : 'none';
+    if (s.wallMax > 0) wallBar.style.width = `${Math.max(0, (run.wall / s.wallMax) * 100)}%`;
+    drawOffer();
     for (const a of K.ABILITIES) {
       const b = abBtns[a.id];
       if (!b) continue;
@@ -863,11 +1045,18 @@ function mountRun(view, ui) {
     for (const m of muzzle) m.t += gdt;
     while (muzzle.length && muzzle[0].t > 0.12) muzzle.shift();
     shake = Math.max(0, shake - dt * 30);
-    for (const b of banners) b.t += dt;
+    // announcements play one at a time
+    if (banners.length > 4) banners.splice(1, banners.length - 4);
+    if (banners.length) banners[0].t += dt * (banners.length > 1 ? 1.4 : 1);
     while (banners.length && banners[0].t > 1.8) banners.shift();
     hurtFlash = Math.max(0, hurtFlash - dt);
+    wallFlash = Math.max(0, wallFlash - dt);
     draw();
-    if ((uiT += dt) > 0.12) { uiT = 0; hudUpdate(); refreshList(); }
+    if ((uiT += dt) > 0.12) {
+      uiT = 0;
+      if (meta.autoBuy && K.autoBuy(run, meta, 4)) refreshList();
+      hudUpdate(); refreshList();
+    }
     if ((saveT += dt) > 5) {
       saveT = 0;
       if (!ended) saveRun(run);
@@ -904,9 +1093,7 @@ function mountRun(view, ui) {
   function endRun(voluntary = false) {
     if (ended) return;
     ended = true;
-    const got = K.shardsForRun(run, meta);
-    meta.shards += got;
-    meta.runs = (meta.runs || 0) + 1;
+    const got = K.finishRun(run, meta);
     saveMeta(meta);
     clearRun();
     if (!voluntary) haptic([40, 60, 40]);
@@ -919,6 +1106,8 @@ function mountRun(view, ui) {
           h('div', {}, h('b', {}, fmtNum(run.kills)), h('span', {}, 'Defeated')),
           h('div', {}, h('b', {}, fmtTime(run.time)), h('span', {}, 'Time'))),
         relics.length ? h('p', { class: 'hint' }, `Relics found: ${relics.join(', ')}`) : null,
+        run.gearFound.length ? h('p', { class: 'hint' }, `Gear found: ${run.gearFound.map((g) => `${K.RARITIES[g.rarity]} ${K.GEAR_BY_ID[g.id].name}`).join(', ')}`) : null,
+        h('button', { class: 'btn btn-outline', style: { width: '100%', marginTop: '8px' }, onclick: () => showRunStats(run) }, 'Run details'),
         meta.maxTier > run.tier && run.tier === meta.maxTier - 1 && run.wave >= K.TIER_UNLOCK_WAVE ? h('p', { class: 'hint' }, `Tier ${meta.maxTier} is now open. Your next run starts there; you can change tiers at the base.`) : null,
         h('div', { class: 'row' },
           h('button', { class: 'btn btn-soft', onclick: () => { close(); ui.go('#/keystone', { replace: true }); } }, 'Base'),
@@ -935,4 +1124,25 @@ function mountRun(view, ui) {
     saveMeta(meta);
     touch(meta);
   };
+}
+
+const SRC_NAMES = { shot: 'Shots', crit: 'Critical hits', super: 'Super crits', bounce: 'Ricochets', thorns: 'Thorns', pulse: 'Pulse', orbit: 'Orbit', chain: 'Chain', exec: 'Execute' };
+function showRunStats(run) {
+  const S = run.stats || {};
+  const dmg = Object.entries(S.dmg || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const total = dmg.reduce((a, [, v]) => a + v, 0) || 1;
+  const kills = Object.entries(S.killsBy || {}).sort((a, b) => b[1] - a[1]);
+  const killer = S.killer ? (K.TYPES[S.killer] || {}).name : null;
+  sheet('Run details', h('div', {},
+    h('div', { class: 'menu-cap' }, 'Damage dealt'),
+    h('div', { class: 'ks-statbars' }, ...dmg.map(([k, v]) => h('div', { class: 'ks-statbar' },
+      h('span', {}, SRC_NAMES[k] || k), h('div', { class: 'ks-bar' }, h('i', { style: { width: `${(v / total) * 100}%` } })), h('b', {}, `${Math.round((v / total) * 100)}%`)))),
+    h('div', { class: 'menu-cap' }, 'Defense'),
+    h('div', { class: 'set-group' },
+      ...[['Damage taken (melee)', S.taken?.melee || 0], ['Damage taken (ranged)', S.taken?.ranged || 0], ['Blocked by wall', S.absorbed || 0], ['Healed by lifesteal', S.healed || 0]]
+        .map(([k, v]) => h('div', { class: 'set-item' }, h('div', { class: 'lbl' }, k), h('b', {}, fmtNum(v))))),
+    h('div', { class: 'menu-cap' }, 'Defeated'),
+    h('div', { class: 'ks-tiers' }, ...kills.map(([t, n]) => h('div', {}, h('small', {}, (K.TYPES[t] || {}).name || t), h('b', {}, fmtNum(n))))),
+    (S.perks || []).length ? h('div', {}, h('div', { class: 'menu-cap' }, 'Perks'), h('p', { class: 'hint', style: { textAlign: 'left' } }, S.perks.map((id) => K.PERK_BY_ID[id].name).join(' · '))) : null,
+    h('p', { class: 'hint' }, `${fmtNum(run.coinsEarned)} coins earned · ${S.abilities || 0} abilities used${killer ? ` · fell to a ${killer}` : ''}`)));
 }

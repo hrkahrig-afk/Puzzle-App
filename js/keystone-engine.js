@@ -11,7 +11,7 @@
 //   Research – upgrades that take real time (minutes → days); 1–3 lab slots.
 //   Relics   – rare Warden drops that give small permanent bonuses; duplicates level them.
 
-export const VERSION = 2;
+export const VERSION = 3;
 export const R = 320;          // arena radius (world units)
 export const TOWER_R = 28;
 export const WAVE_TIME = 20;   // seconds per wave
@@ -21,8 +21,8 @@ export const TIER_UNLOCK_WAVE = 40;
 
 // ---------- Tier scaling ----------
 export const TIER = {
-  hp: 6,          // enemy health ×6 per tier
-  dmg: 3.5,      // enemy damage ×3.5 per tier
+  hp: 8,          // enemy health ×8 per tier
+  dmg: 4,        // enemy damage ×4 per tier
   coins: 2.2,    // coins ×2.2 per tier
   shards: 1.25,  // shards ×1.25 per tier
   growth: 0.008, // enemies also grow faster per wave in higher tiers
@@ -66,10 +66,14 @@ export const RUN_UPGRADES = [
   { id: 'multi',  tab: 'attack',  name: 'Multishot',    c0: 45, g: 1.3,  max: 25, val: (L) => 0.03 * L, fmt: 'pct' },
   { id: 'bounce', tab: 'attack',  name: 'Ricochet',     c0: 60, g: 1.6,  max: 4, tier: 2, val: (L) => L, fmt: 'bounce' },
   { id: 'exec',   tab: 'attack',  name: 'Execute',      c0: 80, g: 1.45, max: 10, tier: 4, val: (L) => 0.01 * L, fmt: 'pct' },
+  { id: 'knock',  tab: 'attack',  name: 'Knockback',    c0: 30, g: 1.3,  max: 15, val: (L) => 0.04 * L, fmt: 'pct' },
+  { id: 'super',  tab: 'attack',  name: 'Super crit',   c0: 90, g: 1.35, max: 25, tier: 3, val: (L) => 0.02 * L, fmt: 'pct' },
   { id: 'hp',     tab: 'defense', name: 'Max health',   c0: 6,  g: 1.16, val: (L) => 60 * (1 + 0.3 * L) * g104(L), fmt: 'num' },
   { id: 'regen',  tab: 'defense', name: 'Regeneration', c0: 8,  g: 1.18, val: (L) => (0.5 + 0.6 * L) * g104(L), fmt: 'regen' },
   { id: 'armor',  tab: 'defense', name: 'Armor',        c0: 18, g: 1.23, max: 30, val: (L) => 0.015 * L, fmt: 'pct' },
   { id: 'thorns', tab: 'defense', name: 'Thorns',       c0: 22, g: 1.22, max: 25, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'wall',   tab: 'defense', name: 'Wall',         c0: 25, g: 1.25, max: 20, val: (L) => 0.1 * L, fmt: 'wallpct' },
+  { id: 'leech',  tab: 'defense', name: 'Lifesteal',    c0: 40, g: 1.3,  max: 20, tier: 2, val: (L) => 0.005 * L, fmt: 'pctx' },
   { id: 'salvage', tab: 'defense', name: 'Salvage',     c0: 70, g: 1.5,  max: 10, tier: 6, val: (L) => 0.003 * L, fmt: 'pctx' },
   { id: 'coins',  tab: 'economy', name: 'Coin bonus',   c0: 25, g: 1.24, val: (L) => 0.1 * L, fmt: 'plus' },
   { id: 'wavec',  tab: 'economy', name: 'Wave bonus',   c0: 35, g: 1.28, val: (L) => 4 * L, fmt: 'wave' },
@@ -89,6 +93,7 @@ export const PERM_UPGRADES = [
   { id: 'pcrit',  name: 'Keen eye',         desc: '+1% crit chance',          c0: 15, g: 1.3,  max: 20, val: (L) => 0.01 * L },
   { id: 'pshard', name: 'Shard lens',       desc: '×1.05 shards',             c0: 25, g: 1.2,  val: (L) => Math.pow(1.05, L) },
   { id: 'poffl',  name: 'Night watch',      desc: '+25% offline shards',      c0: 15, g: 1.3,  max: 20, val: (L) => 1 + 0.25 * L },
+  { id: 'plast',  name: 'Last stand',       desc: 'Once per run, survive a fatal blow (+10% health per level)', c0: 250, g: 2.4, max: 5, val: (L) => (L ? 0.2 + 0.1 * L : 0) },
 ];
 export const PERM_BY_ID = Object.fromEntries(PERM_UPGRADES.map((u) => [u.id, u]));
 
@@ -150,12 +155,267 @@ export const ABILITIES = [
 ];
 export const AUTOCAST_COST = 120;
 
+
+// Clock used for missions (replaceable so the simulator can fast-forward days).
+let clockFn = () => Date.now();
+export function setClock(fn) { clockFn = fn; }
+const nowMs = () => clockFn();
+
+// ---------- Perks (chosen during a run) ----------
+// Every PERK_EVERY waves the run offers 3 perks; pick one (or it's auto-picked).
+export const PERK_EVERY = 5;
+export const PERK_STACK = 3;
+export const PERKS = [
+  { id: 'k_dmg',    name: 'Sharpshooter', desc: '×1.15 damage',                tag: 'dmg' },
+  { id: 'k_rate',   name: 'Rapid fire',   desc: '×1.1 attack speed',           tag: 'rate' },
+  { id: 'k_hp',     name: 'Fortify',      desc: '×1.2 max health',             tag: 'hp' },
+  { id: 'k_regen',  name: 'Mending',      desc: '×1.35 regeneration',          tag: 'regen' },
+  { id: 'k_coin',   name: 'Windfall',     desc: '×1.2 coins',                  tag: 'coins' },
+  { id: 'k_crit',   name: 'Precision',    desc: '+8% crit chance',             tag: 'crit' },
+  { id: 'k_critx',  name: 'Brutality',    desc: '+0.6× crit damage',           tag: 'critx' },
+  { id: 'k_range',  name: 'Long sight',   desc: '+20 range',                   tag: 'range' },
+  { id: 'k_armor',  name: 'Plating',      desc: '+5% armor',                   tag: 'armor' },
+  { id: 'k_thorns', name: 'Spikes',       desc: '+10% thorns',                 tag: 'thorns' },
+  { id: 'k_leech',  name: 'Leech',        desc: '+2% lifesteal',               tag: 'leech' },
+  { id: 'k_wall',   name: 'Rampart',      desc: '+25% of health as wall',      tag: 'wall' },
+  { id: 'k_cd',     name: 'Overclock',    desc: '−15% ability cooldowns',      tag: 'cd' },
+  { id: 'k_boss',   name: 'Giant-slayer', desc: '×1.5 damage to Wardens',      tag: 'dmg' },
+  { id: 'k_glass',  name: 'Glass cannon', desc: '×1.4 damage, ×0.8 health',    tag: 'dmg' },
+  { id: 'k_greed',  name: 'Greed',        desc: '×1.4 coins, −5% armor',       tag: 'coins' },
+];
+export const PERK_BY_ID = Object.fromEntries(PERKS.map((p) => [p.id, p]));
+const pk = (run, id) => (run.perks && run.perks[id]) || 0;
+
+export function offerPerks(run, rand = Math.random) {
+  const pool = PERKS.filter((p) => pk(run, p.id) < PERK_STACK);
+  const out = [];
+  while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rand() * pool.length), 1)[0].id);
+  run.offer = out.length ? out : null;
+}
+export function choosePerk(run, id) {
+  if (!run.offer || !run.offer.includes(id)) return false;
+  run.perks = run.perks || {};
+  run.perks[id] = pk(run, id) + 1;
+  run.offer = null;
+  run.stats && (run.stats.perks = [...(run.stats.perks || []), id]);
+  return true;
+}
+
+// ---------- Gear (equipment loadout) ----------
+export const RARITIES = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic'];
+export const RARITY_COLORS = ['#8a94a6', '#4f8fe0', '#b26ee0', '#e0a92e', '#e05a7a'];
+export const MERGE = 3; // three of a rarity merge into one of the next
+export const GEAR = [
+  { id: 'g_barrel', name: 'Heavy Barrel',   stat: 'dmg',    v: [1.1, 1.2, 1.35, 1.55, 1.8],   desc: (x) => `×${x} damage, ×0.9 attack speed` },
+  { id: 'g_clock',  name: 'Clockwork',      stat: 'rate',   v: [1.05, 1.1, 1.16, 1.24, 1.35], desc: (x) => `×${x} attack speed` },
+  { id: 'g_scope',  name: 'Scope',          stat: 'range',  v: [10, 20, 30, 45, 60],         desc: (x) => `+${x} range, +${Math.round(x / 10)}% crit` },
+  { id: 'g_plate',  name: 'Bastion Plate',  stat: 'hp',     v: [1.12, 1.25, 1.45, 1.7, 2],    desc: (x) => `×${x} max health` },
+  { id: 'g_heart',  name: 'Living Heart',   stat: 'regen',  v: [1.2, 1.4, 1.7, 2.1, 2.6],      desc: (x) => `×${x} regeneration` },
+  { id: 'g_purse',  name: 'Bottomless Purse', stat: 'coin', v: [1.1, 1.2, 1.35, 1.55, 1.8],  desc: (x) => `×${x} coins` },
+  { id: 'g_prism',  name: 'Prism',          stat: 'critx',  v: [0.2, 0.4, 0.7, 1, 1.5],      desc: (x) => `+${x}× crit damage` },
+  { id: 'g_fang',   name: 'Fang',           stat: 'leech',  v: [0.01, 0.02, 0.03, 0.045, 0.06], desc: (x) => `+${(x * 100).toFixed(1).replace('.0', '')}% lifesteal` },
+  { id: 'g_stone',  name: 'Rampart Stone',  stat: 'wall',   v: [0.1, 0.2, 0.35, 0.5, 0.75],  desc: (x) => `+${Math.round(x * 100)}% of health as wall` },
+  { id: 'g_glass',  name: 'Hourglass',      stat: 'cd',     v: [0.92, 0.85, 0.78, 0.7, 0.6], desc: (x) => `−${Math.round((1 - x) * 100)}% ability cooldowns` },
+  { id: 'g_crown',  name: 'Warden Crown',   stat: 'boss',   v: [1.15, 1.3, 1.5, 1.8, 2.2],    desc: (x) => `×${x} damage to Wardens` },
+  { id: 'g_coin',   name: 'Lucky Coin',     stat: 'shard',  v: [1.03, 1.06, 1.1, 1.15, 1.22], desc: (x) => `×${x} shards` },
+];
+export const GEAR_BY_ID = Object.fromEntries(GEAR.map((g) => [g.id, g]));
+export const gearSlots = (meta) => { const t = meta.maxTier || 1; return 2 + (t >= 3) + (t >= 5) + (t >= 8) + (t >= 12); };
+// meta.gear[id] = counts per rarity, e.g. [2, 1, 0, 0, 0]
+export function gearRarity(meta, id) {
+  const c = (meta.gear || {})[id];
+  if (!c) return -1;
+  for (let r = c.length - 1; r >= 0; r--) if (c[r] > 0) return r;
+  return -1;
+}
+export function addGear(meta, id, rarity = 0) {
+  meta.gear = meta.gear || {};
+  const c = meta.gear[id] || (meta.gear[id] = [0, 0, 0, 0, 0]);
+  c[rarity]++;
+  for (let r = 0; r < c.length - 1; r++) while (c[r] >= MERGE) { c[r] -= MERGE; c[r + 1]++; }
+  return gearRarity(meta, id);
+}
+export const gearDropChance = (tier) => Math.min(0.3, 0.1 + 0.005 * (tier - 1));
+export function rollGear(tier, rand = Math.random) {
+  const id = GEAR[Math.floor(rand() * GEAR.length)].id;
+  const x = rand();
+  const epic = Math.min(0.12, 0.03 + 0.004 * tier), rare = Math.min(0.4, 0.2 + 0.01 * tier);
+  return { id, rarity: x < epic ? 2 : x < epic + rare ? 1 : 0 };
+}
+// combined value of equipped gear for a stat (multiplicative or additive by stat)
+function gearVal(meta, stat) {
+  const ADD = { range: 1, critx: 1, leech: 1, wall: 1 };
+  let v = ADD[stat] ? 0 : 1;
+  for (const id of meta.loadout || []) {
+    const g = GEAR_BY_ID[id];
+    if (!g) continue;
+    const r = gearRarity(meta, id);
+    if (r < 0) continue;
+    if (g.stat === stat) v = ADD[stat] ? v + g.v[r] : v * g.v[r];
+    if (stat === 'rate' && g.stat === 'dmg') v *= 0.9;
+    if (stat === 'crit' && g.stat === 'range') v *= 1; // handled in critAdd
+  }
+  return v;
+}
+function gearCritAdd(meta) {
+  let add = 0;
+  for (const id of meta.loadout || []) if (id === 'g_scope') { const r = gearRarity(meta, id); if (r >= 0) add += GEAR_BY_ID[id].v[r] / 1000; }
+  return add;
+}
+
+// ---------- Schematics (auto-buy build priorities) ----------
+// Weights 0–4 per in-run upgrade. Auto-buy picks the upgrade with the lowest cost ÷ weight.
+export const SCHEMATICS = [
+  { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2 } },
+  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 2, crit: 3, critx: 3, multi: 3, bounce: 3, exec: 2, knock: 1, super: 3, hp: 2, regen: 1, armor: 1, thorns: 0, wall: 1, leech: 2, salvage: 0, coins: 1, wavec: 1 } },
+  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 2, rate: 1, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1 } },
+  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy early, power later',     w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 1, super: 1, hp: 3, regen: 2, armor: 1, thorns: 1, wall: 1, leech: 1, salvage: 1, coins: 4, wavec: 4 } },
+];
+export const schematicWeights = (meta) => {
+  if (meta.schematic === 'custom') return meta.customSchematic || SCHEMATICS[0].w;
+  return (SCHEMATICS.find((x) => x.id === meta.schematic) || SCHEMATICS[0]).w;
+};
+// Spend coins according to the active schematic. Returns number of levels bought.
+export function autoBuy(run, meta, maxBuys = 6) {
+  const w = schematicWeights(meta);
+  let bought = 0;
+  for (let k = 0; k < maxBuys; k++) {
+    let best = null;
+    for (const u of runUpgradesFor(run.tier)) {
+      const wt = w[u.id] || 0;
+      if (!wt) continue;
+      const c = runCost(run, meta, u.id, 1);
+      if (!c.n) continue;
+      const score = c.cost / (wt * wt);
+      if (!best || score < best[1]) best = [u.id, score, c.cost];
+    }
+    if (!best || best[2] > run.coins) break;
+    buy(run, meta, best[0], 1);
+    bought++;
+  }
+  return bought;
+}
+// Auto-pick a perk according to the schematic's priorities.
+export function autoPickPerk(run, meta) {
+  if (!run.offer) return null;
+  const w = schematicWeights(meta);
+  let best = run.offer[0], bw = -1;
+  for (const id of run.offer) { const x = (w[PERK_BY_ID[id].tag] || 1) + (id === 'k_boss' ? -0.5 : 0); if (x > bw) { bw = x; best = id; } }
+  choosePerk(run, best);
+  return best;
+}
+
+// ---------- Missions & milestones ----------
+// counters tracked: kills, wardens, runs, waves, abilities, perks, research, workshop, coins
+const DAILY_POOL = [
+  { id: 'd_kills',   key: 'kills',    n: 400,  text: (n) => `Defeat ${n} enemies` },
+  { id: 'd_wardens', key: 'wardens',  n: 3,    text: (n) => `Defeat ${n} Wardens` },
+  { id: 'd_runs',    key: 'runs',     n: 2,    text: (n) => `Finish ${n} runs` },
+  { id: 'd_waves',   key: 'waves',    n: 60,   text: (n) => `Clear ${n} waves in total` },
+  { id: 'd_abil',    key: 'abilities', n: 15,  text: (n) => `Use abilities ${n} times` },
+  { id: 'd_perks',   key: 'perks',    n: 6,    text: (n) => `Choose ${n} perks` },
+  { id: 'd_work',    key: 'workshop', n: 3,    text: (n) => `Buy ${n} Workshop upgrades` },
+  { id: 'd_lab',     key: 'research', n: 1,    text: (n) => `Start ${n} research project` },
+];
+const WEEKLY_POOL = [
+  { id: 'w_kills',   key: 'kills',    n: 4000, text: (n) => `Defeat ${n} enemies` },
+  { id: 'w_wardens', key: 'wardens',  n: 25,   text: (n) => `Defeat ${n} Wardens` },
+  { id: 'w_runs',    key: 'runs',     n: 12,   text: (n) => `Finish ${n} runs` },
+  { id: 'w_waves',   key: 'waves',    n: 500,  text: (n) => `Clear ${n} waves in total` },
+  { id: 'w_perks',   key: 'perks',    n: 40,   text: (n) => `Choose ${n} perks` },
+  { id: 'w_lab',     key: 'research', n: 6,    text: (n) => `Start ${n} research projects` },
+];
+export const MILESTONES = [
+  ...[100, 1000, 10000, 100000, 1000000].map((n, i) => ({ id: `m_k${i}`, key: 'kills', n, text: `Defeat ${n.toLocaleString('en-US')} enemies`, gear: i >= 2 ? 1 : 0 })),
+  ...[1, 10, 50, 250, 1000].map((n, i) => ({ id: `m_w${i}`, key: 'wardens', n, text: `Defeat ${n} Warden${n > 1 ? 's' : ''}`, gear: i >= 1 ? 1 : 0 })),
+  ...[2, 3, 5, 8, 12, 16, 20, 25, 30, 40].map((n, i) => ({ id: `m_t${i}`, key: 'maxTier', n, text: `Unlock tier ${n}`, gear: n >= 5 ? 2 : 1 })),
+  ...[10, 50, 200, 1000].map((n, i) => ({ id: `m_r${i}`, key: 'runs', n, text: `Finish ${n} runs`, gear: i >= 2 ? 1 : 0 })),
+  ...[10, 50, 150, 400].map((n, i) => ({ id: `m_l${i}`, key: 'researchLv', n, text: `Reach ${n} total research levels`, gear: i >= 1 ? 1 : 0 })),
+];
+function dayKeyOf(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function weekKeyOf(d) { const m = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)); return 'W' + dayKeyOf(m); }
+function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
+function pickFrom(pool, n, seed) {
+  const a = pool.slice(); const out = [];
+  let x = seed;
+  while (out.length < n && a.length) { x = (Math.imul(x, 1664525) + 1013904223) >>> 0; out.push(a.splice(x % a.length, 1)[0]); }
+  return out;
+}
+// Rewards scale with how far you've come, so missions stay worth doing.
+export function rewardScale(meta) {
+  const t = meta.maxTier || 1;
+  const w = Math.max(10, (meta.best || {})[t] || (meta.best || {})[t - 1] || 10);
+  return Math.max(5, Math.floor(w * (1 + w / 25)) * tierPow('shards', t) * mult(meta, 'shard'));
+}
+// Make sure daily/weekly missions exist for "now"; returns meta.missions.
+export function refreshMissions(meta, now = nowMs()) {
+  const d = new Date(now);
+  const day = dayKeyOf(d), week = weekKeyOf(d);
+  const M = meta.missions || (meta.missions = {});
+  if (M.day !== day) {
+    M.day = day;
+    M.daily = pickFrom(DAILY_POOL, 3, hash(day)).map((m) => ({ id: m.id, key: m.key, n: m.n, prog: 0, claimed: false }));
+  }
+  if (M.week !== week) {
+    M.week = week;
+    M.weekly = pickFrom(WEEKLY_POOL, 3, hash(week)).map((m) => ({ id: m.id, key: m.key, n: m.n, prog: 0, claimed: false }));
+  }
+  M.done = M.done || {};
+  return M;
+}
+export const missionText = (m) => ([...DAILY_POOL, ...WEEKLY_POOL].find((x) => x.id === m.id) || { text: () => m.id }).text(m.n);
+export const missionReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 1.0 : 0.25));
+export const milestoneReward = (meta, m) => Math.round(rewardScale(meta) * 0.5 * (1 + (m.gear || 0)));
+// Count progress toward missions and lifetime totals.
+export function track(meta, key, amount = 1, now = nowMs()) {
+  const M = refreshMissions(meta, now);
+  for (const m of [...M.daily, ...M.weekly]) if (m.key === key && !m.claimed) m.prog = Math.min(m.n, m.prog + amount);
+  const R = meta.records || (meta.records = {});
+  R[key] = (R[key] || 0) + amount;
+}
+export function milestoneValue(meta, key) {
+  if (key === 'maxTier') return meta.maxTier || 1;
+  if (key === 'researchLv') return Object.values(meta.research || {}).reduce((a, b) => a + b, 0);
+  return (meta.records || {})[key] || 0;
+}
+export function claimMission(meta, list, idx, rand = Math.random) {
+  const M = refreshMissions(meta);
+  const m = M[list][idx];
+  if (!m || m.claimed || m.prog < m.n) return 0;
+  m.claimed = true;
+  const got = missionReward(meta, list);
+  meta.shards += got;
+  return got;
+}
+export function claimMilestone(meta, id, rand = Math.random) {
+  const m = MILESTONES.find((x) => x.id === id);
+  const M = refreshMissions(meta);
+  if (!m || M.done[id] || milestoneValue(meta, m.key) < m.n) return null;
+  M.done[id] = true;
+  const shards = milestoneReward(meta, m);
+  meta.shards += shards;
+  let gear = null;
+  if (m.gear) { const g = rollGear(meta.maxTier || 1, rand); g.rarity = Math.max(g.rarity, Math.min(2, m.gear)); addGear(meta, g.id, g.rarity); gear = g; }
+  return { shards, gear };
+}
+export const unclaimedCount = (meta) => {
+  const M = refreshMissions(meta);
+  let n = [...M.daily, ...M.weekly].filter((m) => !m.claimed && m.prog >= m.n).length;
+  n += MILESTONES.filter((m) => !M.done[m.id] && milestoneValue(meta, m.key) >= m.n).length;
+  return n;
+};
+
+// ---------- Game speed ----------
+export const maxSpeed = (meta) => { const t = meta.maxTier || 1; return t >= 5 ? 5 : t >= 3 ? 4 : 3; };
+
 // ---------- Meta (saved between runs) ----------
 export function newMeta() {
   return {
     v: VERSION, shards: 0, perm: {}, research: {}, lab: [], relics: {},
     abilities: {}, autocast: false, autoOn: true,
     best: {}, maxTier: 1, tier: 1, bestWave: 0, runs: 0, lastSeen: Date.now(),
+    gear: {}, loadout: [], schematic: 'balanced', customSchematic: null, autoBuy: false, autoPerk: true,
+    missions: {}, records: {},
   };
 }
 
@@ -164,7 +424,8 @@ const OLD_PERM = { pdmg: [8, 1.32], php: [8, 1.32], prate: [12, 1.4], pcoin: [10
 export function migrateMeta(m) {
   const base = newMeta();
   if (!m || !Object.keys(m).length) return base;
-  if (m.v === VERSION) return { ...base, ...m };
+  // v2 → v3 only adds new fields; everything already saved is kept as-is
+  if (m.v === VERSION || m.v === 2) return { ...base, ...m, v: VERSION, records: { runs: m.runs || 0, ...(m.records || {}) } };
   let refund = 0;
   for (const [id, L] of Object.entries(m.perm || {})) {
     const o = OLD_PERM[id];
@@ -190,10 +451,10 @@ export function mult(meta, key) {
     case 'hp': return permVal(meta, 'php') * researchVal(meta, 'rhp') * (1 + relicBonus(meta, 'hp'));
     case 'rate': return permVal(meta, 'prate') * (1 + relicBonus(meta, 'rate'));
     case 'coin': return permVal(meta, 'pcoin') * researchVal(meta, 'rcoin') * (1 + relicBonus(meta, 'coin'));
-    case 'shard': return permVal(meta, 'pshard') * researchVal(meta, 'rshard') * (1 + relicBonus(meta, 'shard'));
+    case 'shard': return permVal(meta, 'pshard') * researchVal(meta, 'rshard') * (1 + relicBonus(meta, 'shard')) * gearVal(meta, 'shard');
     case 'crit': return permVal(meta, 'pcrit') + relicBonus(meta, 'crit');
     case 'armor': return relicBonus(meta, 'armor');
-    case 'cd': return researchVal(meta, 'rcd') * Math.max(0.5, 1 - relicBonus(meta, 'cd'));
+    case 'cd': return researchVal(meta, 'rcd') * Math.max(0.5, 1 - relicBonus(meta, 'cd')) * gearVal(meta, 'cd');
     case 'boss': return researchVal(meta, 'rboss') * (1 + relicBonus(meta, 'boss'));
     case 'rspeed': return researchVal(meta, 'rspeed') * (1 + relicBonus(meta, 'rspeed'));
     case 'offl': return permVal(meta, 'poffl') * (1 + relicBonus(meta, 'offl'));
@@ -229,6 +490,7 @@ export function startResearch(meta, id, now = Date.now()) {
   if ((meta.lab || []).length >= researchSlots(meta)) return false;
   meta.shards -= cost;
   meta.lab = [...(meta.lab || []), { id, start: now, end: now + researchTime(meta, id) * 1000 }];
+  track(meta, 'research', 1, now);
   return true;
 }
 // Completes finished projects; returns their ids.
@@ -245,23 +507,32 @@ export function collectResearch(meta, now = Date.now()) {
 export function stats(run, meta) {
   const L = (id) => lvl(run.levels, id);
   const v = (id) => RUN_BY_ID[id].val(L(id));
+  const p = (id) => pk(run, id);
+  const dmgPerk = Math.pow(1.15, p('k_dmg')) * Math.pow(1.4, p('k_glass'));
+  const hpPerk = Math.pow(1.2, p('k_hp')) * Math.pow(0.8, p('k_glass'));
+  const maxHp = v('hp') * mult(meta, 'hp') * gearVal(meta, 'hp') * hpPerk;
   return {
-    dmg: v('dmg') * mult(meta, 'dmg'),
-    rate: v('rate') * mult(meta, 'rate') * (run.fx.overdrive > 0 ? 2 : 1),
-    range: v('range'),
-    crit: Math.min(0.9, v('crit') + mult(meta, 'crit')),
-    critx: v('critx'),
+    dmg: v('dmg') * mult(meta, 'dmg') * gearVal(meta, 'dmg') * dmgPerk,
+    rate: v('rate') * mult(meta, 'rate') * gearVal(meta, 'rate') * Math.pow(1.1, p('k_rate')) * (run.fx.overdrive > 0 ? 2 : 1),
+    range: v('range') + gearVal(meta, 'range') + 20 * p('k_range'),
+    crit: Math.min(0.9, v('crit') + mult(meta, 'crit') + gearCritAdd(meta) + 0.08 * p('k_crit')),
+    critx: v('critx') + gearVal(meta, 'critx') + 0.6 * p('k_critx'),
     multi: v('multi'),
     bounce: v('bounce'),
     exec: v('exec'),
-    maxHp: v('hp') * mult(meta, 'hp'),
-    regen: v('regen') * mult(meta, 'hp'),
-    armor: Math.min(0.75, v('armor') + mult(meta, 'armor')),
-    thorns: v('thorns'),
+    knock: v('knock'),
+    superc: v('super'),
+    maxHp,
+    regen: v('regen') * mult(meta, 'hp') * gearVal(meta, 'regen') * Math.pow(1.35, p('k_regen')),
+    armor: Math.max(0, Math.min(0.75, v('armor') + mult(meta, 'armor') + 0.05 * p('k_armor') - 0.05 * p('k_greed'))),
+    thorns: v('thorns') + 0.1 * p('k_thorns'),
     salvage: v('salvage'),
-    coinMult: (1 + v('coins')) * mult(meta, 'coin'),
+    leech: v('leech') + gearVal(meta, 'leech') + 0.02 * p('k_leech'),
+    wallMax: maxHp * (v('wall') + gearVal(meta, 'wall') + 0.25 * p('k_wall')),
+    coinMult: (1 + v('coins')) * mult(meta, 'coin') * gearVal(meta, 'coin') * Math.pow(1.2, p('k_coin')) * Math.pow(1.4, p('k_greed')),
     waveBonus: v('wavec') * tierPow('coins', run.tier),
-    boss: mult(meta, 'boss'),
+    boss: mult(meta, 'boss') * gearVal(meta, 'boss') * Math.pow(1.5, p('k_boss')),
+    cdMult: Math.pow(0.85, p('k_cd')),
   };
 }
 
@@ -308,20 +579,33 @@ export function newRun(meta, tier = meta.tier || 1) {
     levels: {}, hp: 0, aim: 0,
     enemies: [], shots: [], bolts: [], fx: { overdrive: 0, freeze: 0, orbit: 0 }, rings: [], zaps: [],
     cds: {}, fireT: 0, time: 0, orbitT: 0,
-    kills: 0, bossKills: 0, coinsEarned: 0, relicsFound: [], over: false, nextId: 1,
+    kills: 0, bossKills: 0, coinsEarned: 0, relicsFound: [], gearFound: [], over: false, nextId: 1,
+    perks: {}, offer: null, wall: 0, wallT: 0, lastStand: false, invuln: 0,
+    stats: newRunStats(),
   };
-  run.hp = stats(run, meta).maxHp;
+  const s = stats(run, meta);
+  run.hp = s.maxHp;
+  run.wall = s.wallMax;
   return run;
+}
+export function newRunStats() {
+  return { dmg: {}, taken: { melee: 0, ranged: 0 }, absorbed: 0, healed: 0, killsBy: {}, perks: [], killer: null, abilities: 0 };
 }
 
 // Serialize/resume: enemies are not saved; the current wave restarts.
 export function snapshot(run) {
-  const { tier, wave, coins, levels, hp, cds, kills, bossKills, coinsEarned, time, relicsFound } = run;
-  return { tier, wave, coins, levels, hp, cds, kills, bossKills, coinsEarned, time, relicsFound };
+  const { tier, wave, coins, levels, hp, cds, kills, bossKills, coinsEarned, time, relicsFound, gearFound, perks, offer, wall, lastStand, stats: st } = run;
+  return { tier, wave, coins, levels, hp, cds, kills, bossKills, coinsEarned, time, relicsFound, gearFound, perks, offer, wall, lastStand, stats: st };
 }
+// Older snapshots simply lack the newer fields; they get sensible defaults.
 export function resume(snap, meta) {
   const run = newRun(meta, snap.tier || 1);
-  Object.assign(run, snap, { tier: snap.tier || 1, relicsFound: snap.relicsFound || [] });
+  Object.assign(run, snap, {
+    tier: snap.tier || 1, relicsFound: snap.relicsFound || [], gearFound: snap.gearFound || [],
+    perks: snap.perks || {}, offer: snap.offer || null, lastStand: !!snap.lastStand,
+    stats: { ...newRunStats(), ...(snap.stats || {}) },
+  });
+  if (snap.wall == null) run.wall = stats(run, meta).wallMax;
   return run;
 }
 
@@ -348,19 +632,45 @@ function spawn(run, type, rand, at) {
   return e;
 }
 
-function hitTower(run, meta, s, dmg, events) {
-  const taken = dmg * (1 - s.armor);
+function hitTower(run, meta, s, dmg, events, src = 'melee', who = null) {
+  if (run.invuln > 0) return;
+  let taken = dmg * (1 - s.armor);
+  run.wallT = 4; // wall regrows after 4 s without being hit
+  if (run.wall > 0) {
+    const a = Math.min(run.wall, taken);
+    run.wall -= a; taken -= a; run.stats.absorbed += a;
+    if (a > 0) events.push({ t: 'wallhit', v: a, broke: run.wall <= 0 });
+  }
+  if (taken <= 0) return;
   run.hp -= taken;
+  run.stats.taken[src] = (run.stats.taken[src] || 0) + taken;
   events.push({ t: 'hurt', v: taken });
-  if (run.hp <= 0) { run.hp = 0; run.over = true; events.push({ t: 'over' }); }
+  if (run.hp <= 0) {
+    const ls = permVal(meta, 'plast');
+    if (ls > 0 && !run.lastStand) {
+      run.lastStand = true;
+      run.hp = s.maxHp * ls;
+      run.invuln = 3;
+      events.push({ t: 'laststand' });
+      return;
+    }
+    run.hp = 0; run.over = true; run.stats.killer = who; events.push({ t: 'over' });
+  }
 }
 
-function damage(run, meta, s, e, amount, events, rand) {
+function damage(run, meta, s, e, amount, events, rand, src = 'shot') {
   const T = TYPES[e.type];
   if (T.boss) amount *= s.boss;
   if (T.shielded && e.hp > e.maxHp * 0.5) amount *= 0.5;
+  const dealt = Math.min(Math.max(0, e.hp), amount);
   e.hp -= amount;
-  if (e.hp > 0 && !T.boss && s.exec > 0 && e.hp < e.maxHp * s.exec) e.hp = 0;
+  const D = run.stats.dmg;
+  D[src] = (D[src] || 0) + dealt;
+  if (e.hp > 0 && !T.boss && s.exec > 0 && e.hp < e.maxHp * s.exec) { D.exec = (D.exec || 0) + e.hp; e.hp = 0; }
+  if (s.leech > 0 && (src === 'shot' || src === 'crit' || src === 'super' || src === 'bounce')) {
+    const heal = Math.min(s.maxHp - run.hp, dealt * s.leech);
+    if (heal > 0) { run.hp += heal; run.stats.healed += heal; }
+  }
   if (e.hp <= 0 && !e.dead) killEnemy(run, meta, s, e, events, rand);
 }
 
@@ -369,6 +679,8 @@ function killEnemy(run, meta, s, e, events, rand = Math.random) {
   const T = TYPES[e.type];
   const c = enemyCoins(run.wave, run.tier) * T.coins * s.coinMult * (e.elite ? 4 : 1);
   run.coins += c; run.coinsEarned += c; run.kills++;
+  run.stats.killsBy[e.type] = (run.stats.killsBy[e.type] || 0) + 1;
+  track(meta, 'kills', 1);
   if (s.salvage > 0) run.hp = Math.min(s.maxHp, run.hp + s.maxHp * s.salvage);
   events.push({ t: 'kill', x: e.x, y: e.y, type: e.type, coins: c, elite: e.elite });
   if (T.splits) {
@@ -379,6 +691,13 @@ function killEnemy(run, meta, s, e, events, rand = Math.random) {
   }
   if (T.boss) {
     run.bossKills++;
+    track(meta, 'wardens', 1);
+    if (rand() < gearDropChance(run.tier)) {
+      const g = rollGear(run.tier, rand);
+      addGear(meta, g.id, g.rarity);
+      run.gearFound.push(g);
+      events.push({ t: 'gear', id: g.id, rarity: g.rarity, x: e.x, y: e.y });
+    }
     if (rand() < relicDropChance(meta, run.tier)) {
       const id = rollRelic(meta, run.tier, rand);
       if (id) {
@@ -406,10 +725,12 @@ export function useAbility(run, meta, id, events = [], rand = Math.random) {
   if (!meta.abilities[id] || (run.cds[id] || 0) > 0 || run.over) return false;
   const ab = ABILITIES.find((a) => a.id === id);
   const s = stats(run, meta);
-  run.cds[id] = abilityCd(meta, ab);
+  run.cds[id] = abilityCd(meta, ab) * s.cdMult;
+  run.stats.abilities++;
+  track(meta, 'abilities', 1);
   if (id === 'pulse') {
     const rad = 210;
-    for (const e of run.enemies) if (Math.hypot(e.x, e.y) <= rad) { e.push = 70; damage(run, meta, s, e, s.dmg * 8, events, rand); }
+    for (const e of run.enemies) if (Math.hypot(e.x, e.y) <= rad) { e.push = 70; damage(run, meta, s, e, s.dmg * 8, events, rand, 'pulse'); }
     run.rings.push({ r: 0, max: rad, t: 0, kind: 'pulse' });
   } else if (id === 'freeze') {
     run.fx.freeze = 6;
@@ -427,7 +748,7 @@ export function useAbility(run, meta, id, events = [], rand = Math.random) {
     for (const e of near) {
       run.zaps.push({ x1: px, y1: py, x2: e.x, y2: e.y, t: 0 });
       px = e.x; py = e.y;
-      damage(run, meta, s, e, s.dmg * 15, events, rand);
+      damage(run, meta, s, e, s.dmg * 15, events, rand, 'chain');
     }
   }
   run.enemies = run.enemies.filter((e) => e.hp > 0);
@@ -466,6 +787,9 @@ export function step(run, meta, dt, rand = Math.random) {
   run.zaps = run.zaps.filter((z) => z.t < 0.35);
 
   run.hp = Math.min(s.maxHp, run.hp + s.regen * dt);
+  run.invuln = Math.max(0, (run.invuln || 0) - dt);
+  if (run.wallT > 0) run.wallT -= dt;
+  else if (run.wall < s.wallMax) run.wall = Math.min(s.wallMax, run.wall + s.wallMax * 0.15 * dt);
 
   // waves & spawning
   run.waveT += dt;
@@ -484,6 +808,14 @@ export function step(run, meta, dt, rand = Math.random) {
     const bonus = s.waveBonus * run.wave;
     if (bonus) { run.coins += bonus; run.coinsEarned += bonus; }
     run.wave++; run.waveT = 0; run.spawned = 0; run.bossSpawned = false;
+    track(meta, 'waves', 1);
+    // an unanswered perk offer is auto-picked when the next one is due
+    if ((run.wave - 1) % PERK_EVERY === 0) {
+      if (run.offer) { autoPickPerk(run, meta); track(meta, 'perks', 1); }
+      offerPerks(run, rand);
+      events.push({ t: 'perks' });
+      if (meta.autoPerk) { autoPickPerk(run, meta); track(meta, 'perks', 1); events.push({ t: 'perkauto' }); }
+    }
     const best = meta.best || (meta.best = {});
     if (run.wave > (best[run.tier] || 0)) best[run.tier] = run.wave;
     if (run.wave > (meta.bestWave || 0)) meta.bestWave = run.wave;
@@ -521,11 +853,11 @@ export function step(run, meta, dt, rand = Math.random) {
       if (e.atkT <= 0) {
         if (T.ranged) {
           e.atkT = T.fireEvery;
-          run.bolts.push({ x: e.x, y: e.y, dmg: e.dmg, speed: 150 });
+          run.bolts.push({ x: e.x, y: e.y, dmg: e.dmg, speed: 150, who: e.type });
         } else {
           e.atkT = 1;
-          hitTower(run, meta, s, e.dmg, events);
-          if (s.thorns > 0) damage(run, meta, s, e, e.maxHp * s.thorns, events, rand);
+          hitTower(run, meta, s, e.dmg, events, 'melee', e.type);
+          if (s.thorns > 0) damage(run, meta, s, e, e.maxHp * s.thorns, events, rand, 'thorns');
         }
       }
     }
@@ -539,7 +871,7 @@ export function step(run, meta, dt, rand = Math.random) {
       run.orbitT = 0.25;
       for (const e of run.enemies) {
         const d = Math.hypot(e.x, e.y);
-        if (d > 50 && d < 115) damage(run, meta, s, e, s.dmg * 1.2, events, rand);
+        if (d > 50 && d < 115) damage(run, meta, s, e, s.dmg * 1.2, events, rand, 'orbit');
       }
       run.enemies = run.enemies.filter((e) => e.hp > 0);
     }
@@ -549,7 +881,7 @@ export function step(run, meta, dt, rand = Math.random) {
   for (const b of run.bolts) {
     const d = Math.hypot(b.x, b.y);
     const mv = b.speed * dt;
-    if (d <= TOWER_R + mv) { b.hit = true; hitTower(run, meta, s, b.dmg, events); }
+    if (d <= TOWER_R + mv) { b.hit = true; hitTower(run, meta, s, b.dmg, events, 'ranged', b.who); }
     else { b.x -= (b.x / d) * mv; b.y -= (b.y / d) * mv; }
   }
   run.bolts = run.bolts.filter((b) => !b.hit);
@@ -566,7 +898,8 @@ export function step(run, meta, dt, rand = Math.random) {
       run.fireT = 1 / s.rate;
       const fire = (e) => {
         const crit = rand() < s.crit;
-        run.shots.push({ x: 0, y: 0, target: e.id, tx: e.x, ty: e.y, dmg: s.dmg * (crit ? s.critx : 1), crit, speed: 560, bounces: s.bounce });
+        const sup = crit && rand() < s.superc;
+        run.shots.push({ x: 0, y: 0, target: e.id, tx: e.x, ty: e.y, dmg: s.dmg * (crit ? s.critx : 1) * (sup ? 4 : 1), crit, sup, speed: 560, bounces: s.bounce });
       };
       fire(inRange[0][0]);
       run.aim = Math.atan2(inRange[0][0].y, inRange[0][0].x);
@@ -586,8 +919,9 @@ export function step(run, meta, dt, rand = Math.random) {
     if (d <= mv + (e ? e.size * 0.6 : 2)) {
       p.done = true;
       if (e && e.hp > 0) {
-        damage(run, meta, s, e, p.dmg, events, rand);
-        events.push({ t: 'hit', id: e.id, x: e.x, y: e.y, dmg: p.dmg, crit: p.crit });
+        damage(run, meta, s, e, p.dmg, events, rand, p.bounced ? 'bounce' : p.sup ? 'super' : p.crit ? 'crit' : 'shot');
+        events.push({ t: 'hit', id: e.id, x: e.x, y: e.y, dmg: p.dmg, crit: p.crit, sup: p.sup });
+        if (s.knock > 0 && e.hp > 0 && !TYPES[e.type].boss && rand() < s.knock) e.push = 35;
         if (p.bounces > 0) {
           let next = null, nd = 160;
           for (const o of run.enemies) {
@@ -595,7 +929,7 @@ export function step(run, meta, dt, rand = Math.random) {
             const od = Math.hypot(o.x - e.x, o.y - e.y);
             if (od < nd) { nd = od; next = o; }
           }
-          if (next) newShots.push({ x: e.x, y: e.y, target: next.id, tx: next.x, ty: next.y, dmg: p.dmg * 0.6, crit: false, speed: 560, bounces: p.bounces - 1 });
+          if (next) newShots.push({ x: e.x, y: e.y, target: next.id, tx: next.x, ty: next.y, dmg: p.dmg * 0.6, crit: false, speed: 560, bounces: p.bounces - 1, bounced: true });
         }
       }
     } else { p.x += (dx / d) * mv; p.y += (dy / d) * mv; }
@@ -612,6 +946,19 @@ export function shardsForRun(run, meta) {
   const w = run.wave;
   const base = Math.floor(w * (1 + w / 25)) + run.bossKills * 6;
   return Math.max(1, Math.round(base * tierPow('shards', run.tier) * mult(meta, 'shard')));
+}
+// Bank a finished run: shards, run count, missions and lifetime records.
+export function finishRun(run, meta) {
+  const got = shardsForRun(run, meta);
+  meta.shards += got;
+  meta.runs = (meta.runs || 0) + 1;
+  track(meta, 'runs', 1);
+  const R = meta.records || (meta.records = {});
+  R.shardsEarned = (R.shardsEarned || 0) + got;
+  R.bestRunShards = Math.max(R.bestRunShards || 0, got);
+  R.longestRun = Math.max(R.longestRun || 0, Math.round(run.time || 0));
+  R.playTime = (R.playTime || 0) + Math.round(run.time || 0);
+  return got;
 }
 export const OFFLINE_CAP_H = 12;
 export const offlineCapHours = (meta) => OFFLINE_CAP_H + researchVal(meta, 'roffl');
