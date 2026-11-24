@@ -130,7 +130,8 @@ function game(view, st, key, mode, ui) {
   for (let i = 0; i < N; i++) {
     const blk = isBlock(i);
     const num = P.numbers[i];
-    const c = h('div', { class: 'cw-cell' + (blk ? ' block' : '') },
+    const corner = i === 0 ? ' tl' : i === n - 1 ? ' tr' : i === N - n ? ' bl' : i === N - 1 ? ' br' : '';
+    const c = h('div', { class: 'cw-cell' + (blk ? ' block' : '') + corner },
       !blk && num ? h('span', { class: 'n' }, String(num)) : null,
       blk ? null : h('span', { class: 'l' }));
     if (!blk) c.addEventListener('pointerdown', (e) => { e.preventDefault(); tapCell(i); });
@@ -221,9 +222,17 @@ function game(view, st, key, mode, ui) {
     if (k === 'back') return backspace();
     if (!/^[a-z]$/.test(k)) return;
     const L = k.toUpperCase();
+    const mine = [cellSlot.A[sel], cellSlot.D[sel]].filter((si) => si >= 0);
+    const before = mine.map(wordCorrect);
     if (!locked(sel)) {
       st.entries[sel] = L;
       if (autoCheck && L !== answer(sel)) { wrong.add(sel); haptic(30); } else wrong.delete(sel);
+    }
+    // celebrate words that just became fully correct (only when auto-check is on,
+    // otherwise this would give answers away); the last word gets the finale instead
+    if (autoCheck && !puzzleCorrect()) {
+      const newly = mine.filter((si, k) => !before[k] && wordCorrect(si));
+      if (newly.length) { haptic(15); newly.forEach(waveWord); }
     }
     advance();
     save();
@@ -273,6 +282,49 @@ function game(view, st, key, mode, ui) {
     if (ok) win();
     else if (!warned) { warned = true; toast('Almost! Some squares aren’t right', 2200); }
   }
+  // ----- animations -----
+  const orange = () => getComputedStyle(root).getPropertyValue('--cross').trim() || '#e0843a';
+  function pulse(j, delay, color) {
+    cells[j].animate(
+      [
+        { transform: 'scale(1)', zIndex: 2 },
+        { transform: 'scale(1.18)', backgroundColor: color, color: '#fff', zIndex: 2, offset: 0.35 },
+        { transform: 'scale(1)', zIndex: 2 },
+      ],
+      { duration: 480, delay, easing: 'ease-out' },
+    );
+    const l = cells[j].querySelector('.l');
+    if (l) l.animate([{ color: '#fff', offset: 0.35 }], { duration: 480, delay, easing: 'ease-out' });
+  }
+  const STEP = Math.min(70, 480 / Math.max(1, n - 1));
+  // across words ripple left -> right, down words top -> bottom
+  function waveWord(si) {
+    const color = orange();
+    slots[si].cells.forEach((c, k) => pulse(c, k * STEP, color));
+  }
+  // Finale: centre -> outer rings, then right -> left, then top -> bottom.
+  function finale() {
+    const color = orange();
+    const mid = (n - 1) / 2;
+    const ring = (i) => Math.floor(Math.max(Math.abs(((i / n) | 0) - mid), Math.abs((i % n) - mid)));
+    const rings = ring(0);
+    const RSTEP = Math.min(110, 500 / Math.max(1, rings));
+    const phase1 = rings * RSTEP + 480;
+    const phase2 = phase1 + (n - 1) * STEP + 480;
+    for (let i = 0; i < N; i++) {
+      if (isBlock(i)) continue;
+      const r = (i / n) | 0, c = i % n;
+      pulse(i, ring(i) * RSTEP, color);
+      pulse(i, phase1 + (n - 1 - c) * STEP, color);
+      pulse(i, phase2 + r * STEP, color);
+    }
+    return phase2 + (n - 1) * STEP + 480;
+  }
+  function puzzleCorrect() {
+    for (let i = 0; i < N; i++) if (!isBlock(i) && st.entries[i] !== answer(i)) return false;
+    return true;
+  }
+
   function win() {
     st.status = 'won';
     timer.stop();
@@ -280,9 +332,10 @@ function game(view, st, key, mode, ui) {
     render();
     if (mode === 'daily') recordDaily('crossword', st.date, true);
     const isBest = revealed.size === 0 && recordBest(`cw:${n}`, st.elapsed);
-    haptic(40);
-    cells.forEach((c, i) => { if (!isBlock(i)) setTimeout(() => c.classList.add('ok'), ((i % n) + ((i / n) | 0)) * 40); });
-    setTimeout(() => showWin(isBest), 900);
+    haptic([30, 60, 30]);
+    const total = finale();
+    setTimeout(() => cells.forEach((c, i) => { if (!isBlock(i)) c.classList.add('ok'); }), total);
+    setTimeout(() => showWin(isBest), total + 150);
   }
   function showWin(isBest) {
     const best = getBest(`cw:${n}`);

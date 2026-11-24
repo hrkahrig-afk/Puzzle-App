@@ -141,6 +141,7 @@ export function mount(view, params, ui) {
     const row = all.filter((j) => ROW[j] === ROW[i]);
     const col = all.filter((j) => COL[j] === COL[i]);
     const box = all.filter((j) => BOX[j] === BOX[i]);
+    if (done(row) || done(col) || done(box)) haptic(15);
     if (done(row)) row.forEach((j) => pulse(j, COL[j] * STEP, color));          // left -> right
     if (done(col)) col.forEach((j) => pulse(j, ROW[j] * STEP, color));          // top -> bottom
     if (done(box)) box.forEach((j) => pulse(j, boxRing(j) * STEP * 2, color));  // centre -> ring
@@ -200,7 +201,7 @@ export function mount(view, params, ui) {
     const secs = st.elapsed;
     const isBest = st.hints === 0 && recordBest(`sudoku:${st.difficulty}`, secs);
     if (mode === 'daily') recordDaily('sudoku', st.date, true);
-    haptic(40);
+    haptic([30, 60, 30]);
     const total = finale();
     setTimeout(() => showWin(isBest), total + 150);
   }
