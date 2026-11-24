@@ -70,7 +70,7 @@ function gearGlyph(id, r) {
 }
 
 export function mount(view, params, ui) {
-  return params[0] === 'run' ? mountRun(view, ui) : mountLobby(view, ui);
+  return params[0] === 'run' ? mountRun(view, ui, params[1] === 'event') : mountLobby(view, ui);
 }
 
 // =====================================================================
@@ -153,6 +153,7 @@ function mountLobby(view, ui) {
     const labBusy = (meta.lab || []).length;
     const claimable = K.unclaimedCount(meta);
     const tabs = h('div', { class: 'ks-sections' }, ...[
+      ['event', K.eventClaimable(meta) ? `Event · ${K.eventClaimable(meta)}` : 'Event'],
       ['workshop', 'Workshop'], ['research', `Research${labBusy ? ` · ${labBusy}` : ''}`], ['gear', 'Gear'],
       ['missions', claimable ? `Missions · ${claimable}` : 'Missions'], ['build', 'Build'], ['abilities', 'Abilities'], ['relics', 'Relics'], ['records', 'Records'],
     ].map(([id, label]) =>
@@ -166,6 +167,7 @@ function mountLobby(view, ui) {
     else if (section === 'missions') body = drawMissions();
     else if (section === 'build') body = drawBuild();
     else if (section === 'records') body = drawRecords();
+    else if (section === 'event') body = drawEvent();
     else body = drawAbilities();
 
     const rate = K.offlineRate(meta);
@@ -362,6 +364,84 @@ function mountLobby(view, ui) {
     return h('div', {}, h('div', { class: 'menu-cap' }, 'Schematic'), group, h('div', { class: 'menu-cap' }, 'Automation'), toggles, editor);
   }
 
+  // ----- Monthly event -----
+  function drawEvent() {
+    const ev = K.currentEvent();
+    const E = K.refreshEvent(meta);
+    const th = ev.theme;
+    const left = (ev.endsAt - Date.now()) / 1000;
+    const run = loadRun();
+    const head = h('section', { class: 'ks-event-head', style: { '--ev': th.color } },
+      h('div', { class: 'ks-event-kicker' }, `${new Date().toLocaleDateString(undefined, { month: 'long' })} event · ends in ${fmtDur(left)}`),
+      h('h3', {}, th.name),
+      h('p', {}, th.desc),
+      h('div', { class: 'ks-event-row' },
+        h('div', { class: 'ks-tokens' }, h('span', { class: 'ks-token' }), h('b', {}, fmtNum(E.tokens)), h('small', {}, ` tokens · ${fmtNum(E.earned)} earned`)),
+        run ? h('button', { class: 'btn btn-soft', style: { flex: 'none' }, onclick: () => ui.go('#/keystone/run') }, run.event ? 'Resume event run' : 'Finish current run first')
+          : h('button', { class: 'btn btn-primary', style: { '--c': th.color, color: '#111', flex: 'none' }, onclick: () => ui.go('#/keystone/run/event') }, icon('play'), `Event run · T${meta.tier}`)),
+      h('p', { class: 'hint', style: { textAlign: 'left', margin: '8px 0 0' } }, 'Event runs earn tokens (more for higher waves and Wardens) but don’t count toward tier unlocks or best waves. Tokens reset when the month ends.'));
+
+    // challenges
+    const ch = h('div', { class: 'set-group' }, ...K.EVENT_CHALLENGES.map((c) => {
+      const prog = E.prog[c.id] || 0;
+      let next = c.steps.findIndex((v, i) => !E.steps[`${c.id}${i}`]);
+      const allDone = next < 0;
+      if (allDone) next = c.steps.length - 1;
+      const target = c.steps[next];
+      const ready = !allDone && prog >= target;
+      const pips = h('div', { class: 'ks-pips' }, ...c.steps.map((v, i) => h('i', { class: E.steps[`${c.id}${i}`] ? 'on' : prog >= v ? 'ready' : '' })));
+      return h('div', { class: 'set-item' + (allDone ? ' dim' : '') },
+        h('div', { class: 'lbl' }, c.text(target), pips,
+          h('div', { class: 'ks-bar', style: { marginTop: '6px' } }, h('i', { style: { width: `${Math.min(100, (prog / target) * 100)}%`, background: th.color } })),
+          h('small', {}, `${fmtNum(Math.min(prog, target))} / ${fmtNum(target)} · ${c.tokens[next]} tokens`)),
+        allDone ? h('span', { class: 'ks-owned' }, '✓')
+          : h('button', { class: 'btn ks-cost' + (ready ? '' : ' off'), style: { flex: 'none' }, disabled: !ready, onclick: () => { const got = K.claimEventStep(meta, c.id, next); if (got) { toast(`+${got} tokens`); haptic(15); save(); } } }, 'Claim'));
+    }));
+
+    // tree
+    const nodes = K.eventNodes();
+    const nodeEl = (n) => {
+      const owned = !!E.nodes[n.id];
+      const open = n.needs.every((x) => E.nodes[x]);
+      const can = !owned && open && E.tokens >= n.cost;
+      const label = K.eventRewardText(meta, n.reward);
+      return h('button', { class: 'ks-node' + (owned ? ' owned' : can ? ' can' : open ? ' open' : ''), style: { '--ev': th.color }, disabled: owned || !can,
+        onclick: () => {
+          const res = K.unlockNode(meta, n.id);
+          if (!res) return;
+          haptic([15, 30, 15]);
+          let msg = label;
+          if (res.gear) msg = `${K.RARITIES[res.gear.rarity]} ${K.GEAR_BY_ID[res.gear.id].name}`;
+          if (res.relics) msg = `Relics: ${res.relics.map((r) => K.RELICS.find((x) => x.id === r).name).join(', ')}`;
+          if (res.skin) msg = `New keep colour: ${th.name}`;
+          toast(msg, 2600); save();
+        } },
+        h('small', {}, owned ? '✓' : `${n.cost}`), h('b', {}, label));
+    };
+    const cols = h('div', { class: 'ks-tree' }, ...K.EVENT_BRANCHES.map((b) => h('div', { class: 'ks-branch' },
+      h('div', { class: 'ks-branch-name' }, b.name), ...nodes.filter((n) => n.branch === b.id).map(nodeEl))));
+    const cap = nodes.find((n) => n.id === 'capstone');
+    const ownedN = Object.keys(E.nodes).length;
+
+    // keep colours
+    const skins = Object.keys(meta.skins || {});
+    const skinRow = h('div', { class: 'ks-skins' },
+      h('button', { class: 'ks-skin' + (!meta.skin ? ' on' : ''), style: { '--sk': 'var(--idle)' }, onclick: () => { meta.skin = null; save(); } }, h('i'), h('small', {}, 'Classic')),
+      ...K.EVENT_THEMES.map((t) => {
+        const has = skins.includes(t.id);
+        return h('button', { class: 'ks-skin' + (meta.skin === t.id ? ' on' : '') + (has ? '' : ' locked'), style: { '--sk': t.color }, disabled: !has, onclick: () => { meta.skin = t.id; save(); } },
+          h('i'), h('small', {}, has ? t.name : '???'));
+      }));
+
+    return h('div', {}, head,
+      h('div', { class: 'menu-cap' }, 'Event challenges'), ch,
+      h('div', { class: 'menu-cap' }, `Event tree · ${ownedN} of ${nodes.length} unlocked`),
+      h('p', { class: 'hint', style: { textAlign: 'left', margin: '0 4px 8px' } }, 'Each node needs the one above it. Unlock all three branches to reach the capstone.'),
+      cols, h('div', { class: 'ks-cap' }, nodeEl(cap)),
+      h('div', { class: 'menu-cap' }, 'Keep colours'), skinRow,
+      h('p', { class: 'hint' }, 'Each month’s capstone gives that event’s keep colour, yours to keep.'));
+  }
+
   // ----- Records -----
   function drawRecords() {
     const R = meta.records || {};
@@ -437,6 +517,7 @@ function showHelp() {
     h('p', {}, h('b', {}, 'Perks: '), `every ${K.PERK_EVERY} waves you choose 1 of 3 perks for the rest of the run (or let them be picked for you).`),
     h('p', {}, h('b', {}, 'Gear'), ' drops from Wardens and milestones. Equip a few pieces before a run; three of a kind merge into a rarer one.'),
     h('p', {}, h('b', {}, 'Build: '), 'choose a schematic and switch on Auto-buy to have upgrades bought for you toward that build.'),
+    h('p', {}, h('b', {}, 'Monthly events'), ' change the rules each month. Event runs earn tokens for the event tree (shards, gear, relics and an exclusive keep colour). Tokens and the tree reset at month’s end; rewards stay.'),
     h('p', {}, h('b', {}, 'Missions'), ' refresh daily and weekly; milestones are one-time goals. All pay shards.'),
     h('p', {}, h('b', {}, 'Enemies: '), 'Blocks are steady, Darts fast, Brutes tough, Spitters shoot from range. Later tiers add Bulwarks (shielded until half health), Splitters, Menders (heal others), Phantoms (blink closer) and gold-edged elites.'),
     h('p', { class: 'hint' }, 'Leaving the screen pauses your run; it picks up at the start of the same wave.')));
@@ -450,11 +531,13 @@ const HERO_SVG = `<svg viewBox="0 0 120 120"><g fill="none" stroke="currentColor
 // =====================================================================
 // Run screen
 // =====================================================================
-function mountRun(view, ui) {
+function mountRun(view, ui, asEvent = false) {
   const meta = loadMeta();
   K.collectResearch(meta);
   const snap = loadRun();
-  const run = snap ? K.resume(snap, meta) : K.newRun(meta, meta.tier || 1);
+  const ev = K.currentEvent();
+  K.refreshEvent(meta);
+  const run = snap ? K.resume(snap, meta) : K.newRun(meta, meta.tier || 1, asEvent ? ev.theme.id : null);
   if (!snap) saveRun(run);
   touch(meta);
   const bestBefore = (meta.best || {})[run.tier] || 0;
@@ -468,7 +551,10 @@ function mountRun(view, ui) {
   // ----- header -----
   speed = Math.min(speed, K.maxSpeed(meta));
   const speedBtn = h('button', { class: 'chip ks-speed', onclick: () => { speed = speed >= K.maxSpeed(meta) ? 1 : speed + 1; store.set('ks:speed', speed); speedBtn.textContent = speed + '×'; } }, speed + '×');
-  ui.setTitle(h('span', {}, 'Keystone', h('span', { class: 'mode-pill' }, `Tier ${run.tier}`)));
+  const theme = run.event ? K.THEME_BY_ID[run.event] : null;
+  ui.setTitle(theme
+    ? h('span', { class: 'ks-ev-title', style: { '--ev': theme.color } }, theme.name, h('small', {}, ` · T${run.tier}`))
+    : h('span', {}, 'Keystone', h('span', { class: 'mode-pill' }, `Tier ${run.tier}`)));
   ui.setActions([speedBtn, iconBtn('pause', 'Pause', openPause)]);
 
   // ----- HUD -----
@@ -697,7 +783,7 @@ function mountRun(view, ui) {
   function readColors() {
     const cs = getComputedStyle(root);
     const g = (n, d) => cs.getPropertyValue(n).trim() || d;
-    C = { idle: g('--idle', '#22a39a'), text: g('--text', '#222'), muted: g('--muted', '#777'), border: g('--border', '#ccc'), surface: g('--surface', '#fff'), bg2: g('--surface-2', '#eee'), wrong: g('--wrong', '#d44') };
+    C = { keep: meta.skin && K.THEME_BY_ID[meta.skin] ? K.THEME_BY_ID[meta.skin].color : null, idle: g('--idle', '#22a39a'), text: g('--text', '#222'), muted: g('--muted', '#777'), border: g('--border', '#ccc'), surface: g('--surface', '#fff'), bg2: g('--surface-2', '#eee'), wrong: g('--wrong', '#d44') };
     const m = C.surface.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
     C.dark = m ? (parseInt(m[1], 16) * 0.3 + parseInt(m[2], 16) * 0.59 + parseInt(m[3], 16) * 0.11) < 128 : false;
   }
@@ -934,7 +1020,7 @@ function mountRun(view, ui) {
     const hpFrac = Math.max(0, run.hp / s.maxHp);
     const od = run.fx.overdrive > 0;
     additive();
-    glow(0, 0, K.TOWER_R * (od ? 3.4 : 2.6) * (1 + 0.05 * Math.sin(clock * 2.4)), hurtFlash > 0 ? '#ff6b6b' : C.idle, od ? 0.9 : 0.55);
+    glow(0, 0, K.TOWER_R * (od ? 3.4 : 2.6) * (1 + 0.05 * Math.sin(clock * 2.4)), hurtFlash > 0 ? '#ff6b6b' : (C.keep || C.idle), od ? 0.9 : 0.55);
     for (const m of muzzle) {
       const a = Math.max(0, 1 - m.t / 0.12);
       glow(Math.cos(m.a) * (K.TOWER_R + 6), Math.sin(m.a) * (K.TOWER_R + 6), 18, '#ffffff', a * 0.6);
@@ -969,7 +1055,7 @@ function mountRun(view, ui) {
     // body with a soft top highlight
     shapePath(0, 0, K.TOWER_R, 6, Math.PI / 6);
     const grd = ctx.createLinearGradient(0, -K.TOWER_R, 0, K.TOWER_R);
-    const body = hurtFlash > 0 ? C.wrong : C.idle;
+    const body = hurtFlash > 0 ? C.wrong : (C.keep || C.idle);
     grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.18, body); grd.addColorStop(1, body);
     ctx.fillStyle = grd; ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
@@ -1001,7 +1087,7 @@ function mountRun(view, ui) {
   function hudUpdate() {
     const s = K.stats(run, meta);
     waveLbl.textContent = String(run.wave);
-    waveBar.style.width = `${Math.min(100, (run.waveT / K.WAVE_TIME) * 100)}%`;
+    waveBar.style.width = `${Math.min(100, (run.waveT / (run.waveTime || K.WAVE_TIME)) * 100)}%`;
     coinsEl.textContent = fmtNum(run.coins);
     hpBar.style.width = `${Math.max(0, (run.hp / s.maxHp) * 100)}%`;
     hpBar.classList.toggle('low', run.hp / s.maxHp < 0.35);
@@ -1111,7 +1197,7 @@ function mountRun(view, ui) {
       const close = sheet(voluntary ? 'Run ended' : 'Your keep has fallen', h('div', {},
         h('div', { class: 'big-result' }, run.wave > bestBefore ? `New best in tier ${run.tier}!` : `Tier ${run.tier} · reached wave`, h('b', {}, String(run.wave))),
         h('div', { class: 'stats-row', style: { gridTemplateColumns: 'repeat(3,1fr)' } },
-          h('div', {}, h('b', {}, `+${fmtNum(got)}`), h('span', {}, 'Shards')),
+          h('div', {}, h('b', {}, `+${fmtNum(got)}`), h('span', {}, run.tokensEarned ? `Shards · +${run.tokensEarned} tokens` : 'Shards')),
           h('div', {}, h('b', {}, fmtNum(run.kills)), h('span', {}, 'Defeated')),
           h('div', {}, h('b', {}, fmtTime(run.time)), h('span', {}, 'Time'))),
         relics.length ? h('p', { class: 'hint' }, `Relics found: ${relics.join(', ')}`) : null,

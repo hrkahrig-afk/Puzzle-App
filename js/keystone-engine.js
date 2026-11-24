@@ -480,6 +480,95 @@ export const unclaimedCount = (meta) => {
   return n;
 };
 
+
+// ---------- Monthly events ----------
+// Each calendar month runs a themed event. Event runs use the theme's rules,
+// don't count toward tier unlocks or best waves, and earn event tokens.
+// Tokens unlock nodes in a 22-node tree (three branches + capstone). Tokens and
+// tree progress reset when the month ends; rewards you unlocked are permanent.
+export const EVENT_THEMES = [
+  { id: 'swarm',   name: 'The Swarm',    color: '#7ed957', desc: 'Twice as many enemies, each with half the health.',  mod: { count: 2, hp: 0.5 } },
+  { id: 'titans',  name: 'Titanfall',    color: '#e0843a', desc: 'Half as many enemies with triple health — and double coins.', mod: { count: 0.5, hp: 3, coins: 2 } },
+  { id: 'blitz',   name: 'Blitz',        color: '#f2c84b', desc: 'Waves arrive every 12 seconds instead of 20.',      mod: { waveTime: 12, spawnTime: 8 } },
+  { id: 'eclipse', name: 'Eclipse',      color: '#e05a5a', desc: 'A Warden arrives every 5 waves.',                   mod: { bossEvery: 5 } },
+  { id: 'glass',   name: 'Glass Keep',   color: '#8fd3ff', desc: 'Your keep deals double damage but has half the health.', mod: { pdmg: 2, php: 0.5 } },
+  { id: 'frost',   name: 'Deep Frost',   color: '#bfe8ff', desc: 'Enemies move 30% slower but are 50% tougher.',      mod: { speed: 0.7, hp: 1.5 } },
+];
+export const THEME_BY_ID = Object.fromEntries(EVENT_THEMES.map((t) => [t.id, t]));
+const monthKeyOf = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+export function currentEvent(now = nowMs()) {
+  const d = new Date(now);
+  const idx = (d.getFullYear() * 12 + d.getMonth()) % EVENT_THEMES.length;
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  return { key: monthKeyOf(d), theme: EVENT_THEMES[idx], endsAt: end.getTime() };
+}
+// Challenge ladders: each step pays tokens once per month.
+export const EVENT_CHALLENGES = [
+  { id: 'runs',    text: (n) => `Finish ${n} event runs`,           steps: [3, 10, 20, 35],              tokens: [10, 20, 30, 50] },
+  { id: 'wave',    text: (n) => `Reach wave ${n} in an event run`,   steps: [15, 25, 35, 45, 60],         tokens: [10, 15, 25, 40, 60] },
+  { id: 'wardens', text: (n) => `Defeat ${n} Wardens in event runs`, steps: [5, 15, 30, 60],              tokens: [10, 20, 35, 55] },
+  { id: 'kills',   text: (n) => `Defeat ${n.toLocaleString('en-US')} enemies in event runs`, steps: [1000, 5000, 15000, 40000], tokens: [10, 20, 35, 55] },
+];
+// Tree: three branches of 7 nodes; each node needs the one above it.
+// The capstone needs all three branch ends.
+const NODE_COST = [15, 25, 40, 60, 85, 115, 150];
+export const EVENT_BRANCHES = [
+  { id: 'might',   name: 'Might',   rewards: ['shards:1', 'gear:1', 'shards:2', 'relic:2', 'shards:3', 'gear:2', 'gear:3'] },
+  { id: 'bulwark', name: 'Bulwark', rewards: ['shards:1', 'relic:1', 'gear:1', 'shards:2', 'relic:3', 'shards:4', 'gear:3'] },
+  { id: 'fortune', name: 'Fortune', rewards: ['shards:2', 'shards:2', 'relic:2', 'shards:3', 'gear:2', 'shards:5', 'relic:5'] },
+];
+export const CAPSTONE_COST = 200;
+export function eventNodes() {
+  const out = [];
+  for (const b of EVENT_BRANCHES) b.rewards.forEach((r, i) => out.push({ id: `${b.id}${i}`, branch: b.id, i, cost: NODE_COST[i], reward: r, needs: i ? [`${b.id}${i - 1}`] : [] }));
+  out.push({ id: 'capstone', branch: 'capstone', i: 7, cost: CAPSTONE_COST, reward: 'skin', needs: EVENT_BRANCHES.map((b) => `${b.id}6`) });
+  return out;
+}
+export function refreshEvent(meta, now = nowMs()) {
+  const ev = currentEvent(now);
+  const E = meta.event || (meta.event = {});
+  if (E.key !== ev.key) Object.assign(E, { key: ev.key, theme: ev.theme.id, tokens: 0, earned: 0, nodes: {}, prog: { runs: 0, wave: 0, wardens: 0, kills: 0 }, steps: {} });
+  return E;
+}
+export function eventRewardText(meta, reward) {
+  const [kind, x] = reward.split(':');
+  if (kind === 'shards') return `${Math.round(rewardScale(meta) * 0.6 * +x)} shards`;
+  if (kind === 'gear') return `${RARITIES[Math.min(4, +x)]} gear`;
+  if (kind === 'relic') return `${x} relic${+x > 1 ? 's' : ''}`;
+  if (kind === 'skin') return 'Exclusive keep colour';
+  return reward;
+}
+export function unlockNode(meta, id, rand = Math.random) {
+  const E = refreshEvent(meta);
+  const node = eventNodes().find((n) => n.id === id);
+  if (!node || E.nodes[id] || E.tokens < node.cost || !node.needs.every((n) => E.nodes[n])) return null;
+  E.tokens -= node.cost;
+  E.nodes[id] = true;
+  const [kind, x] = node.reward.split(':');
+  const out = { kind };
+  if (kind === 'shards') { out.shards = Math.round(rewardScale(meta) * 0.6 * +x); meta.shards += out.shards; }
+  else if (kind === 'gear') { const g = rollGear(meta.maxTier || 1, rand); g.rarity = Math.min(4, +x); addGear(meta, g.id, g.rarity); out.gear = g; }
+  else if (kind === 'relic') { out.relics = []; for (let k = 0; k < +x; k++) { const r = rollRelic(meta, Math.max(meta.maxTier || 1, 6), rand); if (r) { meta.relics[r] = (meta.relics[r] || 0) + 1; out.relics.push(r); } } }
+  else if (kind === 'skin') { meta.skins = meta.skins || {}; meta.skins[E.theme] = true; out.skin = E.theme; }
+  return out;
+}
+export function claimEventStep(meta, cid, step) {
+  const E = refreshEvent(meta);
+  const c = EVENT_CHALLENGES.find((x) => x.id === cid);
+  const key = `${cid}${step}`;
+  if (!c || E.steps[key] || (E.prog[cid] || 0) < c.steps[step]) return 0;
+  E.steps[key] = true;
+  E.tokens += c.tokens[step]; E.earned += c.tokens[step];
+  return c.tokens[step];
+}
+export const eventTokensForRun = (run) => Math.floor(run.wave / 4) + 3 * run.bossKills + 2;
+export function eventClaimable(meta) {
+  const E = refreshEvent(meta);
+  let n = 0;
+  for (const c of EVENT_CHALLENGES) c.steps.forEach((v, i) => { if (!E.steps[`${c.id}${i}`] && (E.prog[c.id] || 0) >= v) n++; });
+  return n;
+}
+
 // ---------- Game speed ----------
 export const maxSpeed = (meta) => { const t = meta.maxTier || 1; return t >= 5 ? 5 : t >= 3 ? 4 : 3; };
 
@@ -490,7 +579,7 @@ export function newMeta() {
     abilities: {}, autocast: false, autoOn: true,
     best: {}, maxTier: 1, tier: 1, bestWave: 0, runs: 0, lastSeen: Date.now(),
     gear: {}, loadout: [], schematic: 'balanced', customSchematic: null, autoBuy: false, autoPerk: true,
-    missions: {}, records: {},
+    missions: {}, records: {}, event: {}, skins: {}, skin: null,
   };
 }
 
@@ -585,9 +674,10 @@ export function stats(run, meta) {
   const p = (id) => pk(run, id);
   const dmgPerk = Math.pow(1.15, p('k_dmg')) * Math.pow(1.4, p('k_glass'));
   const hpPerk = Math.pow(1.2, p('k_hp')) * Math.pow(0.8, p('k_glass'));
-  const maxHp = v('hp') * mult(meta, 'hp') * gearVal(meta, 'hp') * hpPerk;
+  const M = run.mod || {};
+  const maxHp = v('hp') * mult(meta, 'hp') * gearVal(meta, 'hp') * hpPerk * (M.php || 1);
   return {
-    dmg: v('dmg') * mult(meta, 'dmg') * gearVal(meta, 'dmg') * dmgPerk,
+    dmg: v('dmg') * mult(meta, 'dmg') * gearVal(meta, 'dmg') * dmgPerk * (M.pdmg || 1),
     rate: v('rate') * mult(meta, 'rate') * gearVal(meta, 'rate') * Math.pow(1.1, p('k_rate')) * (run.fx.overdrive > 0 ? 2 : 1),
     range: v('range') + gearVal(meta, 'range') + 20 * p('k_range'),
     crit: Math.min(0.9, v('crit') + mult(meta, 'crit') + gearCritAdd(meta) + 0.08 * p('k_crit')),
@@ -649,9 +739,12 @@ export function buy(run, meta, id, count) {
 }
 
 // ---------- Run ----------
-export function newRun(meta, tier = meta.tier || 1) {
+export function newRun(meta, tier = meta.tier || 1, eventTheme = null) {
   tier = Math.max(1, Math.min(tier, meta.maxTier || 1));
+  const mod = eventTheme ? (THEME_BY_ID[eventTheme] || {}).mod || {} : {};
   const run = {
+    event: eventTheme || null, mod, eventKey: eventTheme ? currentEvent().key : null,
+    waveTime: mod.waveTime || WAVE_TIME, spawnTime: mod.spawnTime || SPAWN_TIME, bossEvery: mod.bossEvery || BOSS_EVERY,
     tier, wave: 1, waveT: 0, spawned: 0,
     coins: Math.floor(permVal(meta, 'pstart') * tierPow('coins', tier)),
     levels: {}, hp: 0, aim: 0,
@@ -675,12 +768,12 @@ export function newRunStats() {
 
 // Serialize/resume: enemies are not saved; the current wave restarts.
 export function snapshot(run) {
-  const { tier, wave, coins, levels, hp, cds, kills, bossKills, coinsEarned, time, relicsFound, gearFound, perks, offer, wall, lastStand, stats: st } = run;
-  return { tier, wave, coins, levels, hp, cds, kills, bossKills, coinsEarned, time, relicsFound, gearFound, perks, offer, wall, lastStand, stats: st };
+  const { tier, wave, coins, levels, hp, cds, kills, bossKills, coinsEarned, time, relicsFound, gearFound, perks, offer, wall, lastStand, stats: st, event, eventKey } = run;
+  return { tier, wave, coins, levels, hp, cds, kills, bossKills, coinsEarned, time, relicsFound, gearFound, perks, offer, wall, lastStand, stats: st, event, eventKey };
 }
 // Older snapshots simply lack the newer fields; they get sensible defaults.
 export function resume(snap, meta) {
-  const run = newRun(meta, snap.tier || 1);
+  const run = newRun(meta, snap.tier || 1, snap.event || null);
   Object.assign(run, snap, {
     tier: snap.tier || 1, relicsFound: snap.relicsFound || [], gearFound: snap.gearFound || [],
     perks: snap.perks || {}, offer: snap.offer || null, lastStand: !!snap.lastStand,
@@ -702,11 +795,11 @@ function spawn(run, type, rand, at) {
   const w = run.wave;
   const a = rand() * Math.PI * 2;
   const elite = !T.boss && type !== 'mini' && rand() < eliteChance(run.tier);
-  const hp = enemyHp(w, run.tier) * T.hp * (elite ? 3 : 1);
+  const hp = enemyHp(w, run.tier) * T.hp * (elite ? 3 : 1) * ((run.mod && run.mod.hp) || 1);
   const e = {
     id: run.nextId++, type, elite,
     x: at ? at.x : Math.cos(a) * (R + 18), y: at ? at.y : Math.sin(a) * (R + 18),
-    hp, maxHp: hp, dmg: enemyDmg(w, run.tier) * T.dmg * (elite ? 2 : 1), speed: T.speed * (0.9 + rand() * 0.2),
+    hp, maxHp: hp, dmg: enemyDmg(w, run.tier) * T.dmg * (elite ? 2 : 1), speed: T.speed * (0.9 + rand() * 0.2) * ((run.mod && run.mod.speed) || 1),
     size: T.size * (elite ? 1.2 : 1), atkT: 0.4, spin: rand() * 6, push: 0, blinkT: 3,
   };
   run.enemies.push(e);
@@ -758,7 +851,7 @@ function damage(run, meta, s, e, amount, events, rand, src = 'shot') {
 function killEnemy(run, meta, s, e, events, rand = Math.random) {
   e.dead = true;
   const T = TYPES[e.type];
-  const c = enemyCoins(run.wave, run.tier) * T.coins * s.coinMult * (e.elite ? 4 : 1);
+  const c = enemyCoins(run.wave, run.tier) * ((run.mod && run.mod.coins) || 1) * T.coins * s.coinMult * (e.elite ? 4 : 1);
   run.coins += c; run.coinsEarned += c; run.kills++;
   run.stats.killsBy[e.type] = (run.stats.killsBy[e.type] || 0) + 1;
   track(meta, 'kills', 1);
@@ -874,18 +967,19 @@ export function step(run, meta, dt, rand = Math.random) {
 
   // waves & spawning
   run.waveT += dt;
-  const isBossWave = run.wave % BOSS_EVERY === 0;
-  const total = waveCount(run.wave);
-  while (run.spawned < total && run.waveT >= (run.spawned / total) * SPAWN_TIME) {
+  const isBossWave = run.wave % (run.bossEvery || BOSS_EVERY) === 0;
+  const spawnTime = run.spawnTime || SPAWN_TIME;
+  const total = Math.max(2, Math.round(waveCount(run.wave) * ((run.mod && run.mod.count) || 1)));
+  while (run.spawned < total && run.waveT >= (run.spawned / total) * spawnTime) {
     spawn(run, pickType(run, rand), rand);
     run.spawned++;
   }
-  if (isBossWave && run.spawned === total && !run.bossSpawned && run.waveT >= SPAWN_TIME * 0.5) {
+  if (isBossWave && run.spawned === total && !run.bossSpawned && run.waveT >= spawnTime * 0.5) {
     spawn(run, 'boss', rand);
     run.bossSpawned = true;
     events.push({ t: 'boss' });
   }
-  if (run.waveT >= WAVE_TIME) {
+  if (run.waveT >= (run.waveTime || WAVE_TIME)) {
     const bonus = s.waveBonus * run.wave;
     if (bonus) { run.coins += bonus; run.coinsEarned += bonus; }
     run.wave++; run.waveT = 0; run.spawned = 0; run.bossSpawned = false;
@@ -898,10 +992,11 @@ export function step(run, meta, dt, rand = Math.random) {
       if (meta.autoPerk) { autoPickPerk(run, meta); track(meta, 'perks', 1); events.push({ t: 'perkauto' }); }
     }
     const best = meta.best || (meta.best = {});
-    if (run.wave > (best[run.tier] || 0)) best[run.tier] = run.wave;
-    if (run.wave > (meta.bestWave || 0)) meta.bestWave = run.wave;
+    // event runs play by different rules, so they don't count toward bests or unlocks
+    if (!run.event && run.wave > (best[run.tier] || 0)) best[run.tier] = run.wave;
+    if (!run.event && run.wave > (meta.bestWave || 0)) meta.bestWave = run.wave;
     events.push({ t: 'wave', wave: run.wave, bonus });
-    if (run.wave >= TIER_UNLOCK_WAVE && run.tier === (meta.maxTier || 1)) {
+    if (!run.event && run.wave >= TIER_UNLOCK_WAVE && run.tier === (meta.maxTier || 1)) {
       meta.maxTier = run.tier + 1;
       events.push({ t: 'tier', tier: meta.maxTier });
     }
@@ -1032,6 +1127,19 @@ export function shardsForRun(run, meta) {
 export function finishRun(run, meta) {
   run.stats.maxHpEnd = stats(run, meta).maxHp;
   checkRunMissions(run, meta);
+  if (run.event) {
+    const E = refreshEvent(meta);
+    // only count toward the event that was running when this run started
+    if (!run.eventKey || run.eventKey === E.key) {
+      const tok = eventTokensForRun(run);
+      E.tokens += tok; E.earned += tok;
+      E.prog.runs = (E.prog.runs || 0) + 1;
+      E.prog.wave = Math.max(E.prog.wave || 0, run.wave);
+      E.prog.wardens = (E.prog.wardens || 0) + run.bossKills;
+      E.prog.kills = (E.prog.kills || 0) + run.kills;
+      run.tokensEarned = tok;
+    }
+  }
   const got = shardsForRun(run, meta);
   meta.shards += got;
   meta.runs = (meta.runs || 0) + 1;

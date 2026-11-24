@@ -477,3 +477,37 @@ main#view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ks-tag-handicap { background: color-mix(in srgb, #e05a7a 22%, var(--surface)); color: #e05a7a; }
 .ks-tag-explore { background: color-mix(in srgb, var(--idle) 22%, var(--surface)); color: var(--idle); }
 .ks-tag-bonus { background: color-mix(in srgb, #ffd34d 30%, var(--surface)); color: #c7961a; }
+
+.ks-event-head { background: linear-gradient(135deg, color-mix(in srgb, var(--ev) 28%, var(--surface)), var(--surface)); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 6px; border: 1.5px solid color-mix(in srgb, var(--ev) 45%, transparent); }
+.ks-event-head h3 { font-family: var(--serif); font-size: 26px; margin: 2px 0 4px; text-align: left; }
+.ks-event-head p { margin: 0 0 10px; color: var(--text); }
+.ks-event-kicker { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ks-event-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ks-tokens { display: flex; align-items: center; gap: 6px; }
+.ks-tokens b { font-family: var(--serif); font-size: 24px; }
+.ks-tokens small { color: var(--muted); }
+.ks-token { width: 16px; height: 16px; border-radius: 50%; background: var(--ev, #ffd34d); box-shadow: 0 0 10px var(--ev, #ffd34d); display: inline-block; }
+.ks-pips { display: flex; gap: 4px; margin-top: 5px; }
+.ks-pips i { width: 16px; height: 5px; border-radius: 3px; background: var(--surface-3); }
+.ks-pips i.ready { background: #e0a92e; }
+.ks-pips i.on { background: var(--idle); }
+.ks-tree { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ks-branch { display: flex; flex-direction: column; gap: 6px; align-items: stretch; position: relative; }
+.ks-branch-name { text-align: center; font-weight: 800; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ks-node { position: relative; border: 1.5px solid var(--border); background: var(--surface-2); color: var(--muted); border-radius: 12px; padding: 7px 6px; min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: inherit; cursor: default; text-align: center; }
+.ks-node b { font-size: 12px; line-height: 1.2; font-weight: 600; }
+.ks-node small { font-size: 11px; font-weight: 800; }
+.ks-node + .ks-node::before { content: ""; position: absolute; top: -8px; left: 50%; width: 2px; height: 7px; background: var(--border); }
+.ks-node.open { background: var(--surface); color: var(--text); }
+.ks-node.can { background: var(--surface); color: var(--text); border-color: var(--ev); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ev) 35%, transparent), 0 0 14px color-mix(in srgb, var(--ev) 40%, transparent); cursor: pointer; }
+.ks-node.owned { background: color-mix(in srgb, var(--ev) 35%, var(--surface)); color: var(--text); border-color: var(--ev); }
+.ks-cap { display: flex; justify-content: center; margin-top: 10px; }
+.ks-cap .ks-node { width: 60%; min-height: 70px; }
+.ks-skins { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ks-skin { border: 1.5px solid var(--border); background: var(--surface); border-radius: 12px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: var(--text); font: inherit; }
+.ks-skin i { width: 26px; height: 26px; background: var(--sk); clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); }
+.ks-skin small { font-size: 11px; }
+.ks-skin.on { border-color: var(--idle); box-shadow: 0 0 0 2px color-mix(in srgb, var(--idle) 40%, transparent); }
+.ks-skin.locked { opacity: .4; cursor: default; }
+.ks-ev-title { color: var(--ev); text-shadow: 0 0 12px color-mix(in srgb, var(--ev) 50%, transparent); }
+.ks-ev-title small { color: var(--muted); font-family: var(--font); font-size: 13px; text-shadow: none; }
