@@ -204,6 +204,7 @@ function renderSettings() {
     h('div', { class: 'section-label' }, 'Crossword'),
     h('div', { class: 'set-group' },
       item('Daily puzzle size', 'Changes today’s daily grid too', miniStep(s.cwDailySize, 4, 15, sz, (v) => setSetting('cwDailySize', v))),
+      item('Flag wrong letters', 'Mark a letter red as soon as it’s wrong. Turn off to fill in freely and check yourself.', toggle(s.cwAutoCheck, (v) => setSetting('cwAutoCheck', v))),
       item('New puzzle size', 'Default when you start a new one', miniStep(s.cwNewSize, 4, 15, sz, (v) => setSetting('cwNewSize', v))),
     ),
     h('div', { class: 'section-label' }, 'Sudoku'),

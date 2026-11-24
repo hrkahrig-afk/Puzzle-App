@@ -96,7 +96,10 @@ function game(view, st, key, mode, ui) {
     }
   }
   const revealed = new Set(st.revealed);
-  const wrong = new Set(st.wrong || []);
+  const autoCheck = settings.cwAutoCheck;
+  // with auto-check off, start clean (marks come only from Check)
+  const wrong = new Set(autoCheck ? st.wrong || [] : []);
+  if (autoCheck) for (let i = 0; i < N; i++) if (st.entries[i] && st.entries[i] !== answer(i)) wrong.add(i);
 
   let sel = slots[0].cells[0];
   let dir = 'A';
@@ -207,7 +210,10 @@ function game(view, st, key, mode, ui) {
     if (k === 'back') return backspace();
     if (!/^[a-z]$/.test(k)) return;
     const L = k.toUpperCase();
-    if (!revealed.has(sel)) { st.entries[sel] = L; wrong.delete(sel); }
+    if (!revealed.has(sel)) {
+      st.entries[sel] = L;
+      if (autoCheck && L !== answer(sel)) { wrong.add(sel); haptic(30); } else wrong.delete(sel);
+    }
     advance();
     save();
     render();

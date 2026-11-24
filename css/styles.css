@@ -319,6 +319,7 @@ main#view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .cw-cell .l { font-size: var(--lfs, 22px); line-height: 1; margin-top: 12%; }
 .cw-cell.revealed .l { color: var(--accent); }
 .cw-cell.revealed::after { content: ""; position: absolute; top: 0; right: 0; border: 5px solid transparent; border-top-color: var(--accent); border-right-color: var(--accent); }
+.cw-cell.wrong .l { color: var(--wrong); }
 .cw-cell.wrong::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top right, transparent calc(50% - 1px), var(--wrong) 50%, transparent calc(50% + 1px)); opacity: .8; }
 .cw-cell.ok .l { color: var(--wordle); }
 .cw-clues { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; align-content: start; }
