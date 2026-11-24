@@ -205,12 +205,23 @@ function game(view, st, key, mode, ui) {
     jumpToSlot(si);
   }
 
+  // A letter is locked if it was revealed, or (with auto-check on) it sits in
+  // a word that is completely filled in and correct.
+  const wordCorrect = (si) => slots[si].cells.every((c) => st.entries[c] === answer(c));
+  function locked(i) {
+    if (revealed.has(i)) return true;
+    if (!autoCheck) return false;
+    const a = cellSlot.A[i], d = cellSlot.D[i];
+    return (a >= 0 && wordCorrect(a)) || (d >= 0 && wordCorrect(d));
+  }
+  function clearCell(i) { if (!locked(i)) { st.entries[i] = ''; wrong.delete(i); } }
+
   function onKey(k) {
     if (st.status !== 'playing') return;
     if (k === 'back') return backspace();
     if (!/^[a-z]$/.test(k)) return;
     const L = k.toUpperCase();
-    if (!revealed.has(sel)) {
+    if (!locked(sel)) {
       st.entries[sel] = L;
       if (autoCheck && L !== answer(sel)) { wrong.add(sel); haptic(30); } else wrong.delete(sel);
     }
@@ -230,16 +241,24 @@ function game(view, st, key, mode, ui) {
     else moveSlot(1);
   }
   function backspace() {
-    if (st.entries[sel] && !revealed.has(sel)) { st.entries[sel] = ''; wrong.delete(sel); }
+    if (st.entries[sel] && !locked(sel)) clearCell(sel);
     else {
-      const s = slots[curSlot()];
+      // step back to the nearest letter that can be erased, skipping locked ones
+      const si0 = curSlot();
+      const s = slots[si0];
       const pos = s.cells.indexOf(sel);
-      if (pos > 0) sel = s.cells[pos - 1];
+      let target = -1;
+      for (let p = pos - 1; p >= 0 && target < 0; p--) if (!locked(s.cells[p])) target = s.cells[p];
+      if (target >= 0) sel = target;
       else {
-        const prev = slots[(curSlot() - 1 + slots.length) % slots.length];
-        dir = prev.dir; sel = prev.cells[prev.cells.length - 1];
+        for (let k = 1; k <= slots.length && target < 0; k++) {
+          const prev = slots[(si0 - k + slots.length) % slots.length];
+          for (let p = prev.cells.length - 1; p >= 0; p--) if (!locked(prev.cells[p])) { target = prev.cells[p]; dir = prev.dir; break; }
+        }
+        if (target < 0) return;
+        sel = target;
       }
-      if (!revealed.has(sel)) { st.entries[sel] = ''; wrong.delete(sel); }
+      clearCell(sel);
     }
     save();
     render();
@@ -332,6 +351,7 @@ function game(view, st, key, mode, ui) {
       c.classList.toggle('sel', i === sel);
       c.classList.toggle('word', i !== sel && word.has(i));
       c.classList.toggle('revealed', revealed.has(i));
+      c.classList.toggle('locked', !revealed.has(i) && autoCheck && locked(i));
       c.classList.toggle('wrong', wrong.has(i));
       c.lastChild.textContent = st.entries[i] || '';
     }
