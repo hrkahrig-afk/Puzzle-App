@@ -13,6 +13,7 @@
   --wordle: #3f9a5f;
   --sudoku: #5865d8;
   --cross: #e0843a;
+  --idle: #1f9e93;
 
   --w-green: #4c9c63;
   --w-yellow: #cfa22f;
@@ -46,7 +47,7 @@
     --text: #eceef2; --muted: #9aa0aa; --border: #323743;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
     --accent: #8f99ff;
-    --wordle: #57b276; --sudoku: #7d89ff; --cross: #f0a05c;
+    --wordle: #57b276; --sudoku: #7d89ff; --cross: #f0a05c; --idle: #37c2b4;
     --w-green: #4f9a63; --w-yellow: #b6912c; --w-gray: #474c55;
     --key-bg: #9399a4; --key-text: #111318; --key-absent: #1e2127; --key-absent-text: #5c616b;
     --cell: #1f232b; --cell-line: #3a404c; --cell-thick: #a9afbb;
@@ -61,7 +62,7 @@
   --text: #eceef2; --muted: #9aa0aa; --border: #323743;
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
   --accent: #8f99ff;
-  --wordle: #57b276; --sudoku: #7d89ff; --cross: #f0a05c;
+  --wordle: #57b276; --sudoku: #7d89ff; --cross: #f0a05c; --idle: #37c2b4;
   --w-green: #4f9a63; --w-yellow: #b6912c; --w-gray: #474c55;
   --key-bg: #9399a4; --key-text: #111318; --key-absent: #1e2127; --key-absent-text: #5c616b;
   --cell: #1f232b; --cell-line: #3a404c; --cell-thick: #a9afbb;
@@ -360,3 +361,54 @@ main#view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- Keystone (idle) ---------- */
+.ks-hero { grid-template-columns: auto 1fr; }
+.ks-hero-art { width: 84px; height: 84px; color: var(--idle); grid-row: span 1; }
+.ks-hero-art svg { width: 100%; height: 100%; }
+.ks-shards { font-family: var(--serif); font-size: 30px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.ks-shards small { font-family: var(--font); font-size: 14px; color: var(--muted); font-weight: 500; }
+.ks-gem { display: inline-block; width: 12px; height: 12px; background: var(--idle); transform: rotate(45deg); border-radius: 2px; flex: none; }
+.ks-shards .ks-gem { width: 16px; height: 16px; }
+.ks-coin { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #f2c84b; box-shadow: inset 0 0 0 2px #d9a92a; flex: none; }
+.ks-lvl { font-size: 12px; color: var(--muted); font-weight: 600; margin-left: 8px; }
+.ks-owned { color: var(--idle); font-weight: 700; font-size: 14px; }
+.ks-cost { background: color-mix(in srgb, var(--idle) 16%, var(--surface)); color: var(--text); padding: 9px 12px; gap: 6px; }
+.ks-cost.off, .ks-buy.off { opacity: .45; }
+.ks-ab-ico { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); flex: none; }
+.ks-ab-ico.on { background: color-mix(in srgb, var(--idle) 20%, var(--surface)); color: var(--idle); }
+.ks-ab-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.ks-run { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0 10px 8px; gap: 8px; }
+.ks-hud { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; font-size: 14px; flex: none; }
+.ks-hud b { font-size: 16px; }
+.ks-hud-coins { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.ks-hud-hp { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ks-hud-wave { display: flex; flex-direction: column; gap: 3px; }
+.ks-bar { height: 6px; border-radius: 6px; background: var(--surface-3); overflow: hidden; width: 100%; }
+.ks-bar i { display: block; height: 100%; background: var(--idle); border-radius: 6px; transition: width .12s linear; }
+.ks-bar.hp i { background: #4caf73; }
+.ks-bar.hp i.low { background: var(--wrong); }
+.ks-stage { flex: 1; min-height: 160px; display: grid; place-items: center; }
+.ks-canvas { display: block; border-radius: 50%; background: radial-gradient(circle, var(--surface) 0%, var(--surface) 60%, var(--surface-2) 100%); box-shadow: var(--shadow); touch-action: manipulation; }
+.ks-abilities { display: flex; justify-content: center; gap: 10px; flex: none; }
+.ks-ab { position: relative; width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  background: color-mix(in srgb, var(--idle) 22%, var(--surface)); color: var(--idle); box-shadow: var(--shadow); --p: 0%; }
+.ks-ab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; position: relative; }
+.ks-ab small { font-size: 9.5px; font-weight: 700; color: var(--text); position: relative; }
+.ks-ab-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(0,0,0,.45) var(--p), transparent 0); pointer-events: none; }
+.ks-ab.cooling { color: var(--muted); }
+.ks-ab:active { transform: scale(.94); }
+.ks-auto { background: var(--surface-2); color: var(--muted); }
+.ks-auto.on { background: color-mix(in srgb, var(--idle) 22%, var(--surface)); color: var(--idle); }
+.ks-panel { flex: none; height: min(38dvh, 330px); display: flex; flex-direction: column; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.ks-panel-top { display: flex; justify-content: space-between; gap: 8px; padding: 10px 10px 6px; }
+.ks-panel-top .seg button { padding: 7px 9px; }
+.ks-list { flex: 1; overflow-y: auto; padding: 0 10px 10px; }
+.ks-row { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid var(--border); }
+.ks-row:last-child { border-bottom: 0; }
+.ks-row .lbl { flex: 1; font-weight: 600; font-size: 15px; }
+.ks-row .lbl small { display: block; color: var(--muted); font-weight: 500; font-size: 12.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.ks-buy { flex: none; min-width: 96px; background: color-mix(in srgb, var(--idle) 18%, var(--surface)); color: var(--text); padding: 10px 10px; gap: 6px; font-variant-numeric: tabular-nums; }
+.ks-buy small { color: var(--muted); font-size: 11px; }
+.ks-speed { padding: 6px 12px; font-size: 14px; }

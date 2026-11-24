@@ -30,6 +30,7 @@ const GAMES = {
   wordle: { name: 'Word Guess', color: 'var(--wordle)', load: () => import('./wordle.js') },
   sudoku: { name: 'Sudoku', color: 'var(--sudoku)', load: () => import('./sudoku.js') },
   crossword: { name: 'Crossword', color: 'var(--cross)', load: () => import('./crossword.js') },
+  keystone: { name: 'Keystone', color: 'var(--idle)', load: () => import('./keystone.js') },
 };
 
 async function route() {
@@ -57,6 +58,7 @@ window.addEventListener('hashchange', route);
 
 // ---------- Home ----------
 const ART = {
+  keystone: '<svg viewBox="0 0 40 40"><polygon points="20,11 28,15.5 28,24.5 20,29 12,24.5 12,15.5" fill="#fff"/><polygon points="20,16 24,23 16,23" fill="#1f9e93"/><rect x="4" y="5" width="6" height="6" rx="1" fill="#fff" opacity=".7" transform="rotate(20 7 8)"/><polygon points="33,4 37,11 29,11" fill="#fff" opacity=".7"/><polygon points="33,30 37,33 35.5,37.5 30.5,37.5 29,33" fill="#fff" opacity=".7"/></svg>',
   wordle: '<svg viewBox="0 0 40 40" fill="none"><rect x="3" y="12" width="10" height="10" rx="2" fill="#fff"/><rect x="15" y="12" width="10" height="10" rx="2" fill="#fff" opacity=".55"/><rect x="27" y="12" width="10" height="10" rx="2" fill="#fff" opacity=".85"/><rect x="3" y="25" width="10" height="4" rx="2" fill="#fff" opacity=".4"/><rect x="15" y="25" width="10" height="4" rx="2" fill="#fff" opacity=".4"/><rect x="27" y="25" width="10" height="4" rx="2" fill="#fff" opacity=".4"/></svg>',
   sudoku: '<svg viewBox="0 0 40 40" fill="none" stroke="#fff" stroke-width="2"><rect x="5" y="5" width="30" height="30" rx="4"/><path d="M15 5v30M25 5v30M5 15h30M5 25h30" opacity=".5"/><text x="10" y="13.5" font-size="8" fill="#fff" stroke="none" text-anchor="middle" font-weight="700" font-family="sans-serif">3</text><text x="30" y="23.5" font-size="8" fill="#fff" stroke="none" text-anchor="middle" font-weight="700" font-family="sans-serif">7</text><text x="20" y="33.5" font-size="8" fill="#fff" stroke="none" text-anchor="middle" font-weight="700" font-family="sans-serif">5</text></svg>',
   crossword: '<svg viewBox="0 0 40 40"><g fill="#fff"><rect x="5" y="5" width="9" height="9" rx="1.5"/><rect x="15.5" y="5" width="9" height="9" rx="1.5"/><rect x="26" y="5" width="9" height="9" rx="1.5" opacity=".3"/><rect x="5" y="15.5" width="9" height="9" rx="1.5" opacity=".3"/><rect x="15.5" y="15.5" width="9" height="9" rx="1.5"/><rect x="26" y="15.5" width="9" height="9" rx="1.5"/><rect x="5" y="26" width="9" height="9" rx="1.5"/><rect x="15.5" y="26" width="9" height="9" rx="1.5"/><rect x="26" y="26" width="9" height="9" rx="1.5" opacity=".3"/></g></svg>',
@@ -112,6 +114,19 @@ function renderHome() {
       h('div', { class: 'sub' }, st.text, streak.cur > 0 ? ` · 🔥 ${streak.cur}` : ''),
       h('div', { class: 'card-actions' }, dailyBtn, practiceBtn),
     ));
+  }
+  // idle game
+  {
+    const m = store.get('ks:meta', {});
+    const r = store.get('ks:run');
+    wrap.append(h('div', { class: 'section-label' }, 'Idle'));
+    wrap.append(h('section', { class: 'game-card', style: { '--c': 'var(--idle)' } },
+      h('div', { class: 'game-icon', style: { background: 'var(--idle)' }, html: ART.keystone }),
+      h('h2', {}, 'Keystone'),
+      h('div', { class: 'sub' }, m.bestWave ? `Best wave ${m.bestWave} · ${Math.floor(m.shards || 0)} shards` : 'Idle tower defense with shapes'),
+      h('div', { class: 'card-actions' },
+        h('button', { class: 'btn btn-primary', style: { '--c': 'var(--idle)' }, onclick: () => ui.go('#/keystone/run') }, icon('play'), r ? `Resume wave ${r.wave}` : 'Start run'),
+        h('button', { class: 'btn btn-soft', onclick: () => ui.go('#/keystone') }, 'Workshop'))));
   }
   wrap.append(h('div', { class: 'section-label' }, 'Daily streaks'));
   wrap.append(h('div', { class: 'streaks' }, ...['wordle', 'sudoku', 'crossword'].map((k) => {

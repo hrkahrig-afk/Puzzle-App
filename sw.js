@@ -1,10 +1,10 @@
 // Offline support: precache the app shell, then serve cache-first and refresh in the background.
-const VERSION = 'v8';
+const VERSION = 'v9';
 const CACHE = 'puzzle-box-' + VERSION;
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/styles.css',
   'js/app.js', 'js/core.js', 'js/wordle.js', 'js/sudoku.js', 'js/sudoku-gen.js',
-  'js/crossword.js', 'js/crossword-gen.js', 'js/crossword-worker.js',
+  'js/crossword.js', 'js/crossword-gen.js', 'js/crossword-worker.js', 'js/keystone.js', 'js/keystone-engine.js',
   'js/data/words5.js', 'js/data/clues.json',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];
