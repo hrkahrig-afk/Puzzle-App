@@ -305,17 +305,26 @@ function mountLobby(view, ui) {
     const now = new Date();
     const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (7 - ((now.getDay() + 6) % 7)));
-    const row = (text, prog, n, done, claimed, reward, onClaim) => h('div', { class: 'set-item' + (claimed ? ' dim' : '') },
-      h('div', { class: 'lbl' }, text,
+    const row = (text, prog, n, done, claimed, reward, onClaim, tag) => h('div', { class: 'set-item' + (claimed ? ' dim' : '') },
+      h('div', { class: 'lbl' }, tag ? h('span', { class: 'ks-tag ks-tag-' + tag.toLowerCase() }, tag) : null, text,
         h('div', { class: 'ks-bar', style: { marginTop: '6px' } }, h('i', { style: { width: `${Math.min(100, (prog / n) * 100)}%` } })),
         h('small', {}, `${fmtNum(Math.min(prog, n))} / ${fmtNum(n)} · reward ${fmtNum(reward)} shards`)),
       claimed ? h('span', { class: 'ks-owned' }, '✓') : h('button', { class: 'btn ks-cost' + (done ? '' : ' off'), style: { flex: 'none' }, disabled: !done, onclick: onClaim }, 'Claim'));
-    const list = (kind) => M[kind].map((m, i) => row(K.missionText(m), m.prog, m.n, m.prog >= m.n, m.claimed, K.missionReward(meta, kind), () => {
-      const got = K.claimMission(meta, kind, i);
-      if (got) { toast(`+${fmtNum(got)} shards`); haptic(15); save(); }
-    }));
+    const list = (kind) => {
+      const rows = M[kind].map((m, i) => row(K.missionText(m), m.prog, m.n, m.prog >= m.n, m.claimed, K.missionReward(meta, kind), () => {
+        const got = K.claimMission(meta, kind, i);
+        if (got) { toast(`+${fmtNum(got)} shards`); haptic(15); save(); }
+      }, K.missionCat(m)));
+      const sw = K.sweepStatus(meta, kind);
+      rows.push(row(`Clear all ${sw.total} ${kind} missions`, sw.done, sw.total, sw.done >= sw.total, sw.claimed, sw.reward, () => {
+        const got = K.claimSweep(meta, kind);
+        if (got) { toast(`Full set! +${fmtNum(got)} shards`, 2200); haptic([20, 40, 20]); save(); }
+      }, 'Bonus'));
+      return rows;
+    };
     const ms = K.MILESTONES.filter((m) => !M.done[m.id]).slice(0, 8);
     return h('div', {},
+      h('p', { class: 'hint', style: { textAlign: 'left', margin: '0 4px 4px' } }, 'Each set mixes five play styles. Stick to one habit and you’ll leave shards behind; clear the whole set for a bonus.'),
       h('div', { class: 'menu-cap' }, `Daily · resets in ${fmtDur((midnight - now) / 1000)}`), h('div', { class: 'set-group' }, ...list('daily')),
       h('div', { class: 'menu-cap' }, `Weekly · resets in ${fmtDur((monday - now) / 1000)}`), h('div', { class: 'set-group' }, ...list('weekly')),
       h('div', { class: 'menu-cap' }, 'Milestones'),

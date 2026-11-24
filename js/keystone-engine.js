@@ -290,7 +290,9 @@ export function autoBuy(run, meta, maxBuys = 6) {
       if (!best || score < best[1]) best = [u.id, score, c.cost];
     }
     if (!best || best[2] > run.coins) break;
+    run._auto = true;
     buy(run, meta, best[0], 1);
+    run._auto = false;
     bought++;
   }
   return bought;
@@ -306,25 +308,52 @@ export function autoPickPerk(run, meta) {
 }
 
 // ---------- Missions & milestones ----------
-// counters tracked: kills, wardens, runs, waves, abilities, perks, research, workshop, coins
-const DAILY_POOL = [
-  { id: 'd_kills',   key: 'kills',    n: 400,  text: (n) => `Defeat ${n} enemies` },
-  { id: 'd_wardens', key: 'wardens',  n: 3,    text: (n) => `Defeat ${n} Wardens` },
-  { id: 'd_runs',    key: 'runs',     n: 2,    text: (n) => `Finish ${n} runs` },
-  { id: 'd_waves',   key: 'waves',    n: 60,   text: (n) => `Clear ${n} waves in total` },
-  { id: 'd_abil',    key: 'abilities', n: 15,  text: (n) => `Use abilities ${n} times` },
-  { id: 'd_perks',   key: 'perks',    n: 6,    text: (n) => `Choose ${n} perks` },
-  { id: 'd_work',    key: 'workshop', n: 3,    text: (n) => `Buy ${n} Workshop upgrades` },
-  { id: 'd_lab',     key: 'research', n: 1,    text: (n) => `Start ${n} research project` },
+// Missions come in five styles that pull in different directions, so no single
+// build or habit clears them all: offense, defense, economy, handicap, explore.
+// "count" missions add up across runs; "run" missions need a single run that
+// meets the condition (weekly ones need it several times).
+// Wave targets scale with your best wave in your highest tier (bw).
+const share = (run, keys) => {
+  const D = run.stats.dmg || {};
+  const tot = Object.values(D).reduce((a, b) => a + b, 0) || 1;
+  return keys.reduce((a, k) => a + (D[k] || 0), 0) / tot;
+};
+const bought = (run, tab) => ((run.stats.bought || {})[tab] || 0);
+const hasPerk = (run, id) => (run.perks || {})[id] || 0;
+export const MISSION_CATS = { offense: 'Offense', defense: 'Defense', economy: 'Economy', handicap: 'Handicap', explore: 'Explore' };
+const MISSION_POOL = [
+  // offense
+  { id: 'crit',    cat: 'offense', type: 'run', f: 0.5, text: (m) => `Deal 35% of a run’s damage with critical hits (reach wave ${m.w})`, ok: (r, m) => r.wave >= m.w && share(r, ['crit', 'super']) >= 0.35 },
+  { id: 'abil',    cat: 'offense', type: 'run', f: 0.5, need: (M) => Object.keys(M.abilities || {}).length > 0, text: (m) => `Deal 12% of a run’s damage with abilities (reach wave ${m.w})`, ok: (r, m) => r.wave >= m.w && share(r, ['pulse', 'orbit', 'chain']) >= 0.12 },
+  { id: 'warden2', cat: 'offense', type: 'run', text: () => 'Defeat 2 Wardens in a single run', ok: (r) => r.bossKills >= 2 },
+  { id: 'kills',   cat: 'offense', type: 'count', key: 'kills', n: 500, wn: 5000, text: (m) => `Defeat ${m.n.toLocaleString('en-US')} enemies` },
+  { id: 'bounce',  cat: 'offense', type: 'run', f: 0.5, need: (M) => (M.maxTier || 1) >= 2, text: (m) => `Deal 10% of a run’s damage with Ricochet (reach wave ${m.w})`, ok: (r, m) => r.wave >= m.w && share(r, ['bounce']) >= 0.1 },
+  // defense
+  { id: 'wall',    cat: 'defense', type: 'run', text: () => 'Block damage equal to 2× your max health with the wall in one run', ok: (r) => (r.stats.absorbed || 0) >= 2 * (r.stats.maxHpEnd || Infinity) },
+  { id: 'leech',   cat: 'defense', type: 'run', need: (M) => (M.maxTier || 1) >= 2, text: () => 'Heal your full max health with lifesteal in one run', ok: (r) => (r.stats.healed || 0) >= (r.stats.maxHpEnd || Infinity) },
+  { id: 'thorns',  cat: 'defense', type: 'run', f: 0.5, text: (m) => `Deal 8% of a run’s damage with Thorns (reach wave ${m.w})`, ok: (r, m) => r.wave >= m.w && share(r, ['thorns']) >= 0.08 },
+  { id: 'fortress', cat: 'defense', type: 'run', f: 0.7, text: (m) => `Reach wave ${m.w} using the Fortress schematic with Auto-buy`, ok: (r, m) => r.wave >= m.w && r.stats.schematic === 'fortress' && (r.stats.auto || 0) > 0 },
+  // economy
+  { id: 'econ',    cat: 'economy', type: 'run', text: () => 'Buy 15 Economy upgrade levels in one run', ok: (r) => bought(r, 'economy') >= 15 },
+  { id: 'tycoon',  cat: 'economy', type: 'run', f: 0.7, text: (m) => `Reach wave ${m.w} using the Tycoon schematic with Auto-buy`, ok: (r, m) => r.wave >= m.w && r.stats.schematic === 'tycoon' && (r.stats.auto || 0) > 0 },
+  { id: 'greed',   cat: 'economy', type: 'run', f: 0.5, text: (m) => `Reach wave ${m.w} after choosing Windfall or Greed`, ok: (r, m) => r.wave >= m.w && (hasPerk(r, 'k_coin') || hasPerk(r, 'k_greed')) },
+  { id: 'work',    cat: 'economy', type: 'count', key: 'workshop', n: 4, wn: 25, text: (m) => `Buy ${m.n} Workshop upgrades` },
+  { id: 'lab',     cat: 'economy', type: 'count', key: 'research', n: 2, wn: 10, text: (m) => `Start ${m.n} research projects` },
+  // handicap
+  { id: 'noauto',  cat: 'handicap', type: 'run', f: 0.6, text: (m) => `Reach wave ${m.w} without Auto-buy`, ok: (r, m) => r.wave >= m.w && !(r.stats.auto > 0) },
+  { id: 'nogear',  cat: 'handicap', type: 'run', f: 0.5, text: (m) => `Reach wave ${m.w} with no gear equipped`, ok: (r, m) => r.wave >= m.w && !r.stats.loadout },
+  { id: 'noabil',  cat: 'handicap', type: 'run', f: 0.6, text: (m) => `Reach wave ${m.w} without using abilities`, ok: (r, m) => r.wave >= m.w && !r.stats.abilities },
+  { id: 'nodef',   cat: 'handicap', type: 'run', f: 0.45, text: (m) => `Reach wave ${m.w} without buying Defense upgrades`, ok: (r, m) => r.wave >= m.w && !bought(r, 'defense') },
+  { id: 'glass',   cat: 'handicap', type: 'run', f: 0.5, text: (m) => `Reach wave ${m.w} after choosing Glass cannon twice`, ok: (r, m) => r.wave >= m.w && hasPerk(r, 'k_glass') >= 2 },
+  // explore
+  { id: 'top',     cat: 'explore', type: 'run', f: 0.9, text: (m) => `Reach wave ${m.w} in your highest tier`, ok: (r, m) => r.wave >= m.w && r.tier >= (r.stats.maxTierAtStart || 1) },
+  { id: 'low',     cat: 'explore', type: 'run', f: 1.3, need: (M) => (M.maxTier || 1) >= 2, text: (m) => `Reach wave ${m.w} in a tier below your highest`, ok: (r, m) => r.wave >= m.w && r.tier < (r.stats.maxTierAtStart || 1) },
+  { id: 'long',    cat: 'explore', type: 'run', text: () => 'Play a single run lasting 15 minutes', ok: (r) => (r.time || 0) >= 900 },
+  { id: 'assault', cat: 'explore', type: 'run', f: 0.7, text: (m) => `Reach wave ${m.w} using the Assault schematic with Auto-buy`, ok: (r, m) => r.wave >= m.w && r.stats.schematic === 'assault' && (r.stats.auto || 0) > 0 },
+  { id: 'perks4',  cat: 'explore', type: 'run', text: () => 'Choose 4 different perks in one run', ok: (r) => Object.keys(r.perks || {}).length >= 4 },
 ];
-const WEEKLY_POOL = [
-  { id: 'w_kills',   key: 'kills',    n: 4000, text: (n) => `Defeat ${n} enemies` },
-  { id: 'w_wardens', key: 'wardens',  n: 25,   text: (n) => `Defeat ${n} Wardens` },
-  { id: 'w_runs',    key: 'runs',     n: 12,   text: (n) => `Finish ${n} runs` },
-  { id: 'w_waves',   key: 'waves',    n: 500,  text: (n) => `Clear ${n} waves in total` },
-  { id: 'w_perks',   key: 'perks',    n: 40,   text: (n) => `Choose ${n} perks` },
-  { id: 'w_lab',     key: 'research', n: 6,    text: (n) => `Start ${n} research projects` },
-];
+const MISSION_BY_ID = Object.fromEntries(MISSION_POOL.map((m) => [m.id, m]));
+const WEEKLY_TIMES = 3; // weekly "run" missions need the condition met this many times
 export const MILESTONES = [
   ...[100, 1000, 10000, 100000, 1000000].map((n, i) => ({ id: `m_k${i}`, key: 'kills', n, text: `Defeat ${n.toLocaleString('en-US')} enemies`, gear: i >= 2 ? 1 : 0 })),
   ...[1, 10, 50, 250, 1000].map((n, i) => ({ id: `m_w${i}`, key: 'wardens', n, text: `Defeat ${n} Warden${n > 1 ? 's' : ''}`, gear: i >= 1 ? 1 : 0 })),
@@ -348,28 +377,70 @@ export function rewardScale(meta) {
   return Math.max(5, Math.floor(w * (1 + w / 25)) * tierPow('shards', t) * mult(meta, 'shard'));
 }
 // Make sure daily/weekly missions exist for "now"; returns meta.missions.
+const MISSION_VER = 2;
+function makeMissions(meta, seed, weekly) {
+  const t = meta.maxTier || 1;
+  const bw = Math.max(12, (meta.best || {})[t] || (meta.best || {})[t - 1] || 12);
+  const out = [];
+  let x = seed;
+  for (const cat of Object.keys(MISSION_CATS)) {
+    const pool = MISSION_POOL.filter((m) => m.cat === cat && (!m.need || m.need(meta)));
+    x = (Math.imul(x, 1664525) + 1013904223) >>> 0;
+    const d = pool[x % pool.length];
+    const m = { id: d.id, cat, prog: 0, claimed: false };
+    if (d.type === 'count') { m.key = d.key; m.n = weekly ? d.wn : d.n; }
+    else { m.n = weekly ? WEEKLY_TIMES : 1; if (d.f) m.w = Math.max(8, Math.round(bw * d.f)); }
+    out.push(m);
+  }
+  return out;
+}
 export function refreshMissions(meta, now = nowMs()) {
   const d = new Date(now);
   const day = dayKeyOf(d), week = weekKeyOf(d);
   const M = meta.missions || (meta.missions = {});
-  if (M.day !== day) {
-    M.day = day;
-    M.daily = pickFrom(DAILY_POOL, 3, hash(day)).map((m) => ({ id: m.id, key: m.key, n: m.n, prog: 0, claimed: false }));
-  }
-  if (M.week !== week) {
-    M.week = week;
-    M.weekly = pickFrom(WEEKLY_POOL, 3, hash(week)).map((m) => ({ id: m.id, key: m.key, n: m.n, prog: 0, claimed: false }));
-  }
+  if (M.ver !== MISSION_VER) { M.ver = MISSION_VER; M.day = null; M.week = null; }
+  if (M.day !== day) { M.day = day; M.daily = makeMissions(meta, hash(day), false); M.dailyBonus = false; }
+  if (M.week !== week) { M.week = week; M.weekly = makeMissions(meta, hash(week + 'w'), true); M.weeklyBonus = false; }
   M.done = M.done || {};
   return M;
 }
-export const missionText = (m) => ([...DAILY_POOL, ...WEEKLY_POOL].find((x) => x.id === m.id) || { text: () => m.id }).text(m.n);
-export const missionReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 1.0 : 0.25));
+export function missionText(m) {
+  const d = MISSION_BY_ID[m.id];
+  if (!d) return m.id;
+  const t = d.text(m);
+  return d.type === 'run' && m.n > 1 ? `${t} — ${m.n} times` : t;
+}
+export const missionCat = (m) => MISSION_CATS[m.cat] || '';
+// each mission pays a little; clearing a whole set pays a bonus on top
+export const missionReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 0.6 : 0.15));
+export const sweepReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 1.5 : 0.4));
+export function sweepStatus(meta, kind) {
+  const M = refreshMissions(meta);
+  const list = M[kind];
+  return { done: list.filter((m) => m.claimed).length, total: list.length, claimed: !!M[kind + 'Bonus'], reward: sweepReward(meta, kind) };
+}
+export function claimSweep(meta, kind) {
+  const M = refreshMissions(meta);
+  if (M[kind + 'Bonus'] || !M[kind].every((m) => m.claimed)) return 0;
+  M[kind + 'Bonus'] = true;
+  const got = sweepReward(meta, kind);
+  meta.shards += got;
+  return got;
+}
+// Check a finished run against "run" missions.
+function checkRunMissions(run, meta) {
+  const M = refreshMissions(meta);
+  for (const m of [...M.daily, ...M.weekly]) {
+    const d = MISSION_BY_ID[m.id];
+    if (!d || d.type !== 'run' || m.claimed || m.prog >= m.n) continue;
+    try { if (d.ok(run, m)) m.prog = Math.min(m.n, m.prog + 1); } catch {}
+  }
+}
 export const milestoneReward = (meta, m) => Math.round(rewardScale(meta) * 0.5 * (1 + (m.gear || 0)));
 // Count progress toward missions and lifetime totals.
 export function track(meta, key, amount = 1, now = nowMs()) {
   const M = refreshMissions(meta, now);
-  for (const m of [...M.daily, ...M.weekly]) if (m.key === key && !m.claimed) m.prog = Math.min(m.n, m.prog + amount);
+  for (const m of [...M.daily, ...M.weekly]) if (m.key && m.key === key && !m.claimed) m.prog = Math.min(m.n, m.prog + amount);
   const R = meta.records || (meta.records = {});
   R[key] = (R[key] || 0) + amount;
 }
@@ -401,6 +472,7 @@ export function claimMilestone(meta, id, rand = Math.random) {
 export const unclaimedCount = (meta) => {
   const M = refreshMissions(meta);
   let n = [...M.daily, ...M.weekly].filter((m) => !m.claimed && m.prog >= m.n).length;
+  for (const k of ['daily', 'weekly']) if (!M[k + 'Bonus'] && M[k].every((m) => m.claimed)) n++;
   n += MILESTONES.filter((m) => !M.done[m.id] && milestoneValue(meta, m.key) >= m.n).length;
   return n;
 };
@@ -566,6 +638,9 @@ export function buy(run, meta, id, count) {
   const before = stats(run, meta);
   run.coins -= cost;
   run.levels[id] = lvl(run.levels, id) + n;
+  const B = run.stats.bought || (run.stats.bought = {});
+  B[RUN_BY_ID[id].tab] = (B[RUN_BY_ID[id].tab] || 0) + n;
+  if (run._auto) run.stats.auto = (run.stats.auto || 0) + n;
   if (id === 'hp') run.hp += stats(run, meta).maxHp - before.maxHp;
   return true;
 }
@@ -586,6 +661,9 @@ export function newRun(meta, tier = meta.tier || 1) {
   const s = stats(run, meta);
   run.hp = s.maxHp;
   run.wall = s.wallMax;
+  run.stats.loadout = (meta.loadout || []).filter((id) => gearRarity(meta, id) >= 0).length;
+  run.stats.schematic = meta.schematic || 'balanced';
+  run.stats.maxTierAtStart = meta.maxTier || 1;
   return run;
 }
 export function newRunStats() {
@@ -949,6 +1027,8 @@ export function shardsForRun(run, meta) {
 }
 // Bank a finished run: shards, run count, missions and lifetime records.
 export function finishRun(run, meta) {
+  run.stats.maxHpEnd = stats(run, meta).maxHp;
+  checkRunMissions(run, meta);
   const got = shardsForRun(run, meta);
   meta.shards += got;
   meta.runs = (meta.runs || 0) + 1;
