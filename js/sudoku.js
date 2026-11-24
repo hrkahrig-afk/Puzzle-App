@@ -110,24 +110,53 @@ export function mount(view, params, ui) {
         if (check) { st.mistakes++; haptic(60); }
       } else {
         for (const p of PEERS[sel]) st.notes[p] &= ~(1 << d);
-        flashUnits(sel);
+        // the final number gets the full-board finale instead
+        if (!st.values.every((v, j) => v === st.solution[j])) flashUnits(sel);
       }
     }
     save();
     render();
     checkDone();
   }
+  // ----- animations -----
+  const blue = () => getComputedStyle(root).getPropertyValue('--sudoku').trim() || '#5865d8';
+  const STEP = 55;
+  // Pulse one cell: strong blue + swell, starting after `delay` ms.
+  function pulse(j, delay, color) {
+    cells[j].animate(
+      [
+        { transform: 'scale(1)', zIndex: 2 },
+        { transform: 'scale(1.18)', backgroundColor: color, color: '#fff', zIndex: 2, offset: 0.35 },
+        { transform: 'scale(1)', zIndex: 2 },
+      ],
+      { duration: 480, delay, easing: 'ease-out' },
+    );
+  }
+  // Order of a 3x3 box: centre first, then the outer ring.
+  const boxRing = (j) => (ROW[j] % 3 === 1 && COL[j] % 3 === 1 ? 0 : 1);
   function flashUnits(i) {
-    const groups = [
-      [...Array(81).keys()].filter((j) => ROW[j] === ROW[i]),
-      [...Array(81).keys()].filter((j) => COL[j] === COL[i]),
-      [...Array(81).keys()].filter((j) => BOX[j] === BOX[i]),
-    ];
-    for (const g of groups) {
-      if (g.every((j) => st.values[j] === st.solution[j])) {
-        g.forEach((j, k) => setTimeout(() => { cells[j].classList.remove('flash'); void cells[j].offsetWidth; cells[j].classList.add('flash'); }, k * 30));
-      }
+    const color = blue();
+    const done = (g) => g.every((j) => st.values[j] === st.solution[j]);
+    const all = [...Array(81).keys()];
+    const row = all.filter((j) => ROW[j] === ROW[i]);
+    const col = all.filter((j) => COL[j] === COL[i]);
+    const box = all.filter((j) => BOX[j] === BOX[i]);
+    if (done(row)) row.forEach((j) => pulse(j, COL[j] * STEP, color));          // left -> right
+    if (done(col)) col.forEach((j) => pulse(j, ROW[j] * STEP, color));          // top -> bottom
+    if (done(box)) box.forEach((j) => pulse(j, boxRing(j) * STEP * 2, color));  // centre -> ring
+  }
+  // Finale: centre -> outer rings, then right -> left, then top -> bottom.
+  function finale() {
+    const color = blue();
+    const ring = (j) => Math.max(Math.abs(ROW[j] - 4), Math.abs(COL[j] - 4));
+    const phase1 = 4 * 90 + 480;
+    const phase2 = phase1 + 8 * STEP + 480;
+    for (let j = 0; j < 81; j++) {
+      pulse(j, ring(j) * 90, color);
+      pulse(j, phase1 + (8 - COL[j]) * STEP, color);
+      pulse(j, phase2 + ROW[j] * STEP, color);
     }
+    return phase2 + 8 * STEP + 480;
   }
   function erase() {
     if (st.status !== 'playing' || sel < 0 || st.puzzle[sel]) return;
@@ -172,7 +201,8 @@ export function mount(view, params, ui) {
     const isBest = st.hints === 0 && recordBest(`sudoku:${st.difficulty}`, secs);
     if (mode === 'daily') recordDaily('sudoku', st.date, true);
     haptic(40);
-    setTimeout(() => showWin(isBest), 700);
+    const total = finale();
+    setTimeout(() => showWin(isBest), total + 150);
   }
   function showWin(isBest) {
     const best = getBest(`sudoku:${st.difficulty}`);
