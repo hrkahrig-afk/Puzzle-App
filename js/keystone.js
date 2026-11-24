@@ -467,7 +467,7 @@ function mountRun(view, ui) {
       add({ kind: 'coin', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 2.2, t: 0, col: '#ffd34d', s: 2.6 });
     }
   }
-  const ringFx = (x, y, col, max, life = 0.4, w = 3) => add({ kind: 'ring', x, y, life, t: 0, col, max, w });
+  const ringFx = (x, y, col, max, life = 0.4, w = 5) => add({ kind: 'ring', x, y, life, t: 0, col, max, w });
   const glowFx = (x, y, col, r, life = 0.3) => add({ kind: 'glow', x, y, life, t: 0, col, r });
   const kick = (n) => { if (!reduced) shake = Math.min(10, shake + n); };
 
@@ -479,7 +479,7 @@ function mountRun(view, ui) {
         const big = T.boss ? 3 : e.elite ? 1.6 : 1;
         sparks(e.x, e.y, col, Math.round(9 * big), 120 * big);
         chips(e.x, e.y, col, Math.round(4 * big), T.size);
-        ringFx(e.x, e.y, col, T.size * 2.6 * big, 0.38 + 0.15 * big);
+        ringFx(e.x, e.y, col, T.size * 2.8 * big, 0.45 + 0.15 * big, 6 * Math.min(big, 1.6));
         glowFx(e.x, e.y, col, T.size * 3 * big, 0.28);
         coinsHome(e.x, e.y, T.boss ? 14 : e.elite ? 4 : 1 + (Math.random() < 0.5 ? 1 : 0));
         hitFlash.delete(e.id);
@@ -607,12 +607,12 @@ function mountRun(view, ui) {
     }
     normal();
     // range ring: slowly turning dashes with a faint glow
-    ctx.setLineDash([6, 8]);
+    ctx.setLineDash([12, 9]);
     ctx.lineDashOffset = -clock * 12;
-    ctx.strokeStyle = C.idle; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = C.idle; ctx.globalAlpha = 0.9; ctx.lineWidth = 3.2;
     ctx.beginPath(); ctx.arc(0, 0, s.range, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    ctx.globalAlpha = 0.08; ctx.lineWidth = 8;
+    ctx.globalAlpha = C.dark ? 0.16 : 0.12; ctx.lineWidth = 16;
     ctx.beginPath(); ctx.arc(0, 0, s.range, 0, Math.PI * 2); ctx.stroke();
     normal();
     if (run.fx.freeze > 0) {
@@ -671,26 +671,28 @@ function mountRun(view, ui) {
     // ----- projectiles -----
     additive();
     for (const b of run.bolts) {
-      glow(b.x, b.y, 14, '#e46ad8', 0.7);
+      glow(b.x, b.y, 22, '#e46ad8', 0.85);
       ctx.globalAlpha = 1; ctx.fillStyle = '#ffd0f6';
-      ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x, b.y, 4.8, 0, Math.PI * 2); ctx.fill();
     }
     for (const p of run.shots) {
       // trail: remember last few positions on the shot object
       const tr = p._tr || (p._tr = []);
       tr.push(p.x, p.y);
-      if (tr.length > 12) tr.splice(0, 2);
+      if (tr.length > 18) tr.splice(0, 2);
       if (!p._seen) { p._seen = true; if (p.x === 0 && p.y === 0) muzzle.push({ a: Math.atan2(p.ty, p.tx), t: 0 }); }
       const col = p.crit ? '#ffd34d' : C.idle;
       ctx.strokeStyle = col; ctx.lineCap = 'round';
       for (let k = 2; k < tr.length; k += 2) {
-        ctx.globalAlpha = (k / tr.length) * 0.6;
-        ctx.lineWidth = (p.crit ? 4 : 3) * (k / tr.length);
+        ctx.globalAlpha = (k / tr.length) * 0.85;
+        ctx.lineWidth = (p.crit ? 8 : 6) * (k / tr.length);
         ctx.beginPath(); ctx.moveTo(tr[k - 2], tr[k - 1]); ctx.lineTo(tr[k], tr[k + 1]); ctx.stroke();
       }
-      glow(p.x, p.y, p.crit ? 16 : 11, col, 0.8);
-      ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.crit ? 2.6 : 1.9, 0, Math.PI * 2); ctx.fill();
+      glow(p.x, p.y, p.crit ? 26 : 19, col, 0.95);
+      ctx.globalAlpha = 1; ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.crit ? 6 : 4.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.crit ? 3.4 : 2.5, 0, Math.PI * 2); ctx.fill();
     }
     ctx.lineCap = 'butt';
     // chain lightning: jagged bolt with a wide glow pass
@@ -743,7 +745,10 @@ function mountRun(view, ui) {
         ctx.beginPath(); ctx.arc(q.x, q.y, 1.8, 0, Math.PI * 2); ctx.fill();
       } else if (q.kind === 'ring') {
         const r = q.max * (1 - Math.pow(1 - q.t / q.life, 2));
-        ctx.strokeStyle = q.col; ctx.globalAlpha = life * 0.9; ctx.lineWidth = q.w * life + 0.5;
+        ctx.strokeStyle = q.col;
+        ctx.globalAlpha = life * 0.3; ctx.lineWidth = q.w * 3 * (0.4 + 0.6 * life);
+        ctx.beginPath(); ctx.arc(q.x, q.y, Math.max(0.5, r), 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = life; ctx.lineWidth = q.w * (0.4 + 0.6 * life) + 1;
         ctx.beginPath(); ctx.arc(q.x, q.y, Math.max(0.5, r), 0, Math.PI * 2); ctx.stroke();
       } else if (q.kind === 'glow') {
         glow(q.x, q.y, q.r * (1 + q.t / q.life * 0.5), q.col, life * 0.8);
