@@ -1,5 +1,5 @@
 // Offline support: precache the app shell, then serve cache-first and refresh in the background.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'puzzle-box-' + VERSION;
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/styles.css',
