@@ -123,9 +123,9 @@ function renderHome() {
     wrap.append(h('section', { class: 'game-card', style: { '--c': 'var(--idle)' } },
       h('div', { class: 'game-icon', style: { background: 'var(--idle)' }, html: ART.keystone }),
       h('h2', {}, 'Keystone'),
-      h('div', { class: 'sub' }, m.bestWave ? `Best wave ${m.bestWave} · ${Math.floor(m.shards || 0)} shards` : 'Idle tower defense with shapes'),
+      h('div', { class: 'sub' }, m.bestWave ? `Tier ${m.maxTier || 1} · best wave ${(m.best && m.best[m.maxTier || 1]) || m.bestWave}` : 'Idle tower defense with shapes'),
       h('div', { class: 'card-actions' },
-        h('button', { class: 'btn btn-primary', style: { '--c': 'var(--idle)' }, onclick: () => ui.go('#/keystone/run') }, icon('play'), r ? `Resume wave ${r.wave}` : 'Start run'),
+        h('button', { class: 'btn btn-primary', style: { '--c': 'var(--idle)' }, onclick: () => ui.go('#/keystone/run') }, icon('play'), r ? `Resume · W${r.wave}` : 'Start run'),
         h('button', { class: 'btn btn-soft', onclick: () => ui.go('#/keystone') }, 'Workshop'))));
   }
   wrap.append(h('div', { class: 'section-label' }, 'Daily streaks'));

@@ -412,3 +412,30 @@ main#view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ks-buy { flex: none; min-width: 96px; background: color-mix(in srgb, var(--idle) 18%, var(--surface)); color: var(--text); padding: 10px 10px; gap: 6px; font-variant-numeric: tabular-nums; }
 .ks-buy small { color: var(--muted); font-size: 11px; }
 .ks-speed { padding: 6px 12px; font-size: 14px; }
+
+.ks-tier { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 8px; }
+.ks-tier-btn { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--surface-2); font-size: 22px; cursor: pointer; color: var(--text); }
+.ks-tier-btn:disabled { opacity: .35; }
+.ks-tier-mid { display: flex; flex-direction: column; align-items: center; min-width: 130px; }
+.ks-tier-out { font-family: var(--serif); font-size: 24px; font-weight: 700; }
+.ks-tier-mid small { color: var(--muted); font-size: 12.5px; }
+.ks-tier-hint { grid-column: 1 / -1; margin: 2px 0 0; }
+.ks-sections { display: flex; width: 100%; margin: 4px 0 14px; }
+.ks-sections button { flex: 1; padding: 9px 4px; font-size: 13.5px; }
+.set-item.dim { opacity: .55; }
+.ks-owned.muted { color: var(--muted); }
+.ks-lab { display: grid; gap: 8px; margin-bottom: 14px; }
+.ks-slot { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); padding: 12px 14px; display: grid; gap: 6px; }
+.ks-slot b { font-size: 15px; }
+.ks-slot small { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.ks-slot.empty { box-shadow: none; border: 1.5px dashed var(--border); background: transparent; }
+.ks-slot.locked { box-shadow: none; background: var(--surface-2); opacity: .7; }
+.ks-relics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.ks-relic { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); padding: 12px; display: grid; gap: 3px; justify-items: start; }
+.ks-relic b { font-size: 14.5px; }
+.ks-relic small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+.ks-relic .ks-lvl { margin-left: 0; }
+.ks-relic.none { background: var(--surface-2); box-shadow: none; }
+.ks-relic-glyph { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--rc); background: color-mix(in srgb, var(--rc) 16%, var(--surface)); font-weight: 800; }
+.ks-relic-glyph svg { width: 24px; height: 24px; }
+.ks-relic-glyph.unknown { color: var(--muted); background: var(--surface-3); }

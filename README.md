@@ -4,7 +4,7 @@ A personal puzzle app for Android (installable web app / PWA) with three games:
 
 - **Word Guess** – guess the hidden 5-letter word in 6 tries. Daily word + unlimited mode, hard mode, stats and sharing.
 - **Sudoku** – freshly generated puzzles with a guaranteed unique solution. Easy / Medium / Hard / Expert, notes, undo, hints, mistake flagging, daily puzzle.
-- **Keystone** – an original idle tower-defense game drawn with simple shapes: in-run coin upgrades, permanent shard upgrades, abilities with autocast, Warden bosses every 10 waves and offline earnings. No ads.
+- **Keystone** – an original idle tower-defense game drawn with simple shapes, balanced for long-term play: tiers with new enemy types, a multiplicative workshop, a research lab on real-time timers (1–3 slots), collectible relics from Warden bosses, six abilities with autocast and offline earnings. No ads. `tools/keystone-year-sim.mjs` simulates a year of play for balance tuning.
 - **Crossword** – generated American-style grids of any size from 4×4 to 15×15 with clues. Daily puzzle (size set in Settings, default 5×5), check / reveal, timer.
 
 Everything runs on the phone – no server, no account – and works offline after the first load.
