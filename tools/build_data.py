@@ -104,6 +104,31 @@ def make_clue(word):
     c = _make_clue(word, True)
     return c or _make_clue(word, False)
 
+from difflib import SequenceMatcher
+
+def primary_sense(w):
+    """(pos, offset) of a word's most common meaning."""
+    best = None
+    for k in index:
+        if w in index[k]:
+            ts, offs = index[k][w]
+            if best is None or ts > best[0]:
+                best = (ts, k, offs[0])
+    return best and (best[1], best[2])
+
+def good_synonym(syn, word, k, off):
+    """A synonym is a fair clue only if it is common, its own main meaning is
+    this sense, and it is not just a spelling/form variant of the answer."""
+    if len(syn) < 3 or zipf_frequency(syn, 'en') < 3.3:
+        return False
+    if primary_sense(syn) != (k, off):
+        return False
+    if SequenceMatcher(None, syn, word).ratio() > 0.7 or syn[:4] == word[:4]:
+        return False
+    if mentions(syn, word) or mentions(word, syn):
+        return False
+    return True
+
 def _make_clue(word, common_only):
     """Pick a clue from the word's most common part of speech/senses."""
     cands = []
@@ -123,10 +148,11 @@ def _make_clue(word, common_only):
             g = clean_gloss(gloss)
             if 6 <= len(g) <= 55 and not mentions(g, word):
                 return g[0].upper() + g[1:]
-            if best_syn is None:
+            if best_syn is None and i < 2:
                 for s in words:
-                    if s.lower() != word and is_alpha(s) and zipf_frequency(s, 'en') > 3.0 and not mentions(s, word):
-                        best_syn = s[0].upper() + s[1:]
+                    sl = s.lower()
+                    if sl != word and is_alpha(sl) and good_synonym(sl, word, k, off):
+                        best_syn = sl[0].upper() + sl[1:]
                         break
     if best_syn:
         return best_syn
