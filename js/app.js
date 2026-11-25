@@ -233,7 +233,7 @@ function renderSettings() {
     ),
     h('div', { class: 'section-label' }, 'Save data'),
     h('div', { class: 'set-group' },
-      item('Export save', 'Copy your whole save as text to keep somewhere safe', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: showExport }, 'Export')),
+      item('Export save', 'Copy your whole save as text to keep somewhere safe', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: () => showExport() }, 'Export')),
       item('Import save', 'Paste a saved text to restore it', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: showImport }, 'Import')),
       item('Backups on this phone', 'Made automatically each day and before updates', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: showBackups }, 'View')),
     ),
@@ -260,10 +260,22 @@ function confirmReset() {
       } }, 'Reset'))));
 }
 
-function showExport() {
+// Bump with every release: the first launch after an update backs up the save on
+// the phone and asks the player to export a copy somewhere safe.
+const APP_VERSION = '2026.11.25-2';
+function checkUpdate() {
+  const prev = store.get('appVersion', null);
+  if (prev === APP_VERSION) return;
+  backupNow(prev ? `before update ${APP_VERSION}` : 'first launch of this version');
+  store.set('appVersion', APP_VERSION);
+  setTimeout(() => showExport(true), 700);
+}
+
+function showExport(afterUpdate = false) {
   const text = exportSave();
   const ta = h('textarea', { class: 'save-text', readonly: true }, text);
-  const close = sheet('Export save', h('div', {},
+  const close = sheet(afterUpdate ? 'Puzzle Box was updated' : 'Export save', h('div', {},
+    afterUpdate ? h('p', { style: { textAlign: 'left', margin: '0 0 8px' } }, 'A backup was saved on this phone. To be completely safe, copy your save and keep it somewhere off the phone, such as a note or an email to yourself.') : null,
     h('p', { class: 'hint', style: { textAlign: 'left' } }, 'This text is your entire save: all games, stats and Keystone progress. Keep it in a note, an email to yourself, or a file.'),
     ta,
     h('div', { class: 'row' },
@@ -276,7 +288,8 @@ function showExport() {
         if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: 'Puzzle Box save' }).catch(() => {});
         else { const a = h('a', { href: URL.createObjectURL(blob), download: file.name }); document.body.append(a); a.click(); a.remove(); }
         void close;
-      } }, 'Save as file'))));
+      } }, 'Save as file')),
+    afterUpdate ? h('button', { class: 'btn btn-outline', style: { width: '100%', marginTop: '10px' }, onclick: () => close() }, 'Not now') : null));
 }
 function showImport() {
   const ta = h('textarea', { class: 'save-text', placeholder: 'Paste your save text here' });
@@ -305,7 +318,7 @@ function showBackups() {
 }
 
 // ---------- Boot ----------
-try { autoBackup(); } catch {}
+try { autoBackup(); checkUpdate(); } catch {}
 // Ask the phone to keep this app's data permanently (not cleared when storage runs low).
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then((p) => p || navigator.storage.persist()); } catch {}
 applyTheme();
