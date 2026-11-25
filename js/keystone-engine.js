@@ -1215,7 +1215,9 @@ export function step(run, meta, dt, rand = Math.random) {
       e.blinkT -= dt * slow;
       if (e.blinkT <= 0) { e.blinkT = 3; const j = Math.min(70, d - 110); e.x -= (e.x / d) * j; e.y -= (e.y / d) * j; events.push({ t: 'blink', x: e.x, y: e.y }); }
     }
-    const stop = T.stopAt || TOWER_R + e.size;
+    // Spitters close in to just inside your range (so the keep can hit them),
+    // but never nearer than their usual 195 once your range grows past that.
+    const stop = T.ranged ? Math.max(TOWER_R + e.size, Math.min(T.stopAt, s.range - 6)) : (T.stopAt || TOWER_R + e.size);
     if (d > stop) {
       const mv = Math.min(d - stop, e.speed * slow * dt);
       e.x -= (e.x / d) * mv; e.y -= (e.y / d) * mv;
