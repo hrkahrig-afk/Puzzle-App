@@ -306,6 +306,8 @@ function showBackups() {
 
 // ---------- Boot ----------
 try { autoBackup(); } catch {}
+// Ask the phone to keep this app's data permanently (not cleared when storage runs low).
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then((p) => p || navigator.storage.persist()); } catch {}
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 route();

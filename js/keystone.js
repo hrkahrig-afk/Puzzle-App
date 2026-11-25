@@ -8,7 +8,16 @@ export function loadMeta() {
   if (raw && Object.keys(raw).length && raw.v !== K.VERSION) backupNow(`before Keystone update (save v${raw.v || 1})`);
   return K.migrateMeta(raw);
 }
-const saveMeta = (m) => store.set('ks:meta', m);
+// Guard: never let a smaller profile (fewer runs or a lower tier) overwrite a
+// bigger one. That can only happen through a bug, so keep the stored one.
+function saveMeta(m) {
+  const cur = store.get('ks:meta', null);
+  if (cur && ((cur.runs || 0) > (m.runs || 0) || (cur.maxTier || 1) > (m.maxTier || 1))) {
+    if (!saveMeta.warned) { saveMeta.warned = true; backupNow('blocked a smaller save'); console.warn('Keystone: refused to overwrite a larger save'); }
+    return;
+  }
+  store.set('ks:meta', m);
+}
 const loadRun = () => store.get('ks:run');
 const saveRun = (run) => store.set('ks:run', K.snapshot(run));
 const clearRun = () => store.del('ks:run');
