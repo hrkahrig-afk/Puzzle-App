@@ -39,6 +39,16 @@ function fmtStat(u, v, ctx) {
     case 'freepct': return `${Math.round(v * 100)}% per wave`;
     case 'levels': return `${v} level${v === 1 ? '' : 's'}`;
     case 'interest': return `${(v * 100).toFixed(1)}% per wave`;
+    case 'splash': return `${Math.round(v * 100)}% of the hit to nearby enemies`;
+    case 'pierce': return v ? `through ${v} more enem${v === 1 ? 'y' : 'ies'}` : 'none';
+    case 'burn': return `${Math.round(v * 100)}% of the hit over 3 s`;
+    case 'healpct': return `${Math.round(v * 100)}% of health each wave`;
+    case 'reflect': return `${Math.round(v * 100)}% of the shooter’s health`;
+    case 'aura': return `${Math.round(v * 100)}% slower near the keep`;
+    case 'drones': return `${v} drone${v === 1 ? '' : 's'}`;
+    case 'bounty': return `+${Math.round(v * 100)}% from elites & Wardens`;
+    case 'overkill': return `+${Math.round(v * 100)}% on overkill`;
+    case 'streak': return `+${(v * 100).toFixed(1)}% per streak kill (up to 20)`;
     case 'thresh': return ctx && ctx.maxHp ? `${fmtNum(ctx.maxHp * v)} per hit` : `${(v * 100).toFixed(1)}% of health`;
     case 'rate': return v.toFixed(2) + '/s';
     case 'int': return String(Math.round(v));
@@ -175,7 +185,7 @@ function mountLobby(view, ui) {
     const tabs = h('div', { class: 'ks-sections' }, ...[
       ['event', K.eventClaimable(meta) ? `Event · ${K.eventClaimable(meta)}` : 'Event'],
       ['workshop', 'Workshop'], ['research', `Research${labBusy ? ` · ${labBusy}` : ''}`], ['gear', 'Gear'],
-      ['missions', claimable ? `Missions · ${claimable}` : 'Missions'], ['build', 'Build'], ['abilities', 'Abilities'], ['relics', 'Relics'], ['records', 'Records'],
+      ['missions', claimable ? `Missions · ${claimable}` : 'Missions'], ['build', 'Build'], ['abilities', 'Abilities & allies'], ['relics', 'Relics'], ['records', 'Records'],
     ].map(([id, label]) =>
       h('button', { class: 'chip' + (id === 'missions' && claimable ? ' ks-dot' : ''), 'aria-pressed': String(section === id), onclick: () => { section = id; store.set('ks:section', id); draw(); } }, label)));
 
@@ -201,7 +211,8 @@ function mountLobby(view, ui) {
       const cost = K.permCost(meta, u.id);
       return h('div', { class: 'set-item' },
         h('div', { class: 'lbl' }, u.name, h('span', { class: 'ks-lvl' }, `Lv ${L}${u.max ? '/' + u.max : ''}`), h('small', {}, `${u.desc} per level · now ${permNow(u, meta)}`)),
-        cost === Infinity ? h('span', { class: 'ks-owned' }, 'Max') : costBtn(cost, () => { meta.shards -= cost; meta.perm[u.id] = L + 1; K.track(meta, 'workshop', 1); haptic(10); save(); }));
+        !K.permUnlocked(meta, u.id) ? h('span', { class: 'ks-owned muted' }, `Tier ${u.tier}`)
+        : cost === Infinity ? h('span', { class: 'ks-owned' }, 'Max') : costBtn(cost, () => { meta.shards -= cost; meta.perm[u.id] = L + 1; K.track(meta, 'workshop', 1); haptic(10); save(); }));
     }));
   }
 
@@ -237,15 +248,26 @@ function mountLobby(view, ui) {
       }
       const cost = K.researchCost(meta, u.id);
       const busy = K.isResearching(meta, u.id);
+      const queued = (meta.labQueue || []).includes(u.id);
+      const canQueue = K.queueUnlocked(meta) && !queued && (meta.labQueue || []).length < K.QUEUE_MAX && cost !== Infinity;
       const ctl = cost === Infinity ? h('span', { class: 'ks-owned' }, 'Max')
+        : queued ? h('span', { class: 'ks-owned' }, 'Queued')
+        : (busy || full) && canQueue ? h('button', { class: 'btn ks-cost', style: { flex: 'none' }, onclick: () => { K.queueResearch(meta, u.id); haptic(8); save(); } }, '+ Queue')
         : busy ? h('span', { class: 'ks-owned' }, 'In lab')
-        : costBtn(cost, () => { if (K.startResearch(meta, u.id)) { haptic(12); save(); } }, full);
+        : costBtn(cost, () => { if (K.startResearch(meta, u.id)) { K.track(meta, 'research', 0); haptic(12); save(); } }, full);
       return h('div', { class: 'set-item' },
         h('div', { class: 'lbl' }, u.name, h('span', { class: 'ks-lvl' }, `Lv ${L}${u.max ? '/' + u.max : ''}`),
           h('small', {}, `${u.desc} per level · ${cost === Infinity ? 'complete' : 'takes ' + fmtDur(K.researchTime(meta, u.id))}`)),
         ctl);
     }));
-    return h('div', {}, active, full ? h('p', { class: 'hint' }, 'All lab slots are busy.') : null, list);
+    const q = meta.labQueue || [];
+    const queueBox = !K.queueUnlocked(meta) ? h('p', { class: 'hint' }, 'Research queue unlocks at tier 2.')
+      : h('div', {}, h('div', { class: 'menu-cap' }, `Queue · ${q.length}/${K.QUEUE_MAX}`),
+        q.length ? h('div', { class: 'set-group' }, ...q.map((id, i) => h('div', { class: 'set-item' },
+          h('div', { class: 'lbl' }, `${i + 1}. ${K.RESEARCH_BY_ID[id].name}`, h('small', {}, `starts when a slot frees · ${fmtNum(K.researchCost(meta, id))} shards`)),
+          h('button', { class: 'btn btn-soft', style: { flex: 'none' }, onclick: () => { K.unqueueResearch(meta, id); save(); } }, 'Remove'))))
+          : h('p', { class: 'hint', style: { textAlign: 'left' } }, 'When your lab is busy, tap “+ Queue” on a project. Queued projects start the moment a slot frees, even while you’re away (shards are spent then).'));
+    return h('div', {}, active, full ? h('p', { class: 'hint' }, 'All lab slots are busy.') : null, queueBox, list);
   }
 
   function drawRelics() {
@@ -267,7 +289,7 @@ function mountLobby(view, ui) {
       grid);
   }
 
-  function drawAbilities() {
+  function abilityGroup() {
     return h('div', { class: 'set-group' },
       ...K.ABILITIES.map((a) => {
         const owned = !!meta.abilities[a.id];
@@ -285,6 +307,21 @@ function mountLobby(view, ui) {
         meta.autocast ? toggleEl(meta.autoOn !== false, (v) => { meta.autoOn = v; save(false); })
           : costBtn(K.AUTOCAST_COST, () => { meta.shards -= K.AUTOCAST_COST; meta.autocast = true; meta.autoOn = true; haptic(15); save(); })),
     );
+  }
+  function drawAbilities() {
+    return h('div', {}, abilityGroup(), h('div', { class: 'menu-cap' }, 'Allies'),
+      h('div', { class: 'set-group' }, ...K.ALLIES.map((a) => {
+        const L = K.allyLv(meta, a.id);
+        const unlocked = K.allyUnlocked(meta, a.id);
+        const cost = K.allyCost(meta, a.id);
+        return h('div', { class: 'set-item' + (unlocked ? '' : ' dim') },
+          h('div', { class: 'ks-ally-ico', style: { '--ac': a.color } }),
+          h('div', { class: 'lbl' }, a.name, L ? h('span', { class: 'ks-lvl' }, `Lv ${L}/${K.ALLY_MAX}`) : null, h('small', {}, a.desc)),
+          !unlocked ? h('span', { class: 'ks-owned muted' }, `Tier ${a.tier}`)
+            : cost === Infinity ? h('span', { class: 'ks-owned' }, 'Max')
+            : costBtn(cost, () => { if (K.buyAlly(meta, a.id)) { haptic(15); save(); } }));
+      })),
+      h('p', { class: 'hint' }, 'Allies circle your keep and fire on their own. Their damage grows with your keep’s.'));
   }
 
 
@@ -381,7 +418,22 @@ function mountLobby(view, ui) {
             h('div', { class: 'mini-step' }, h('button', { onclick: () => set(-1), 'aria-label': 'Lower' }, '−'), out, h('button', { onclick: () => set(1), 'aria-label': 'Higher' }, '+')));
         })));
     }
-    return h('div', {}, h('div', { class: 'menu-cap' }, 'Schematic'), group, h('div', { class: 'menu-cap' }, 'Automation'), toggles, editor);
+    let head;
+    if (!K.permUnlocked(meta, 'phead')) head = h('p', { class: 'hint' }, 'Head start unlocks at tier 3: start every run with free levels in stats you choose.');
+    else {
+      const L = meta.perm.phead || 0;
+      const chosen = meta.headStats || (meta.headStats = []);
+      const opts = K.RUN_UPGRADES.filter((u) => K.headStartEligible(u) && (u.tier || 1) <= meta.maxTier);
+      head = h('div', {},
+        h('p', { class: 'hint', style: { textAlign: 'left', margin: '0 4px 8px' } }, L ? `Each run starts with ${L} free level${L > 1 ? 's' : ''} in up to ${K.HEAD_SLOTS} stats (${chosen.length}/${K.HEAD_SLOTS} chosen). Upgrade Head start in the Workshop.` : `Buy Head start in the Workshop, then pick up to ${K.HEAD_SLOTS} stats here.`),
+        h('div', { class: 'chips ks-headchips' }, ...opts.map((u) => h('button', { class: 'chip', 'aria-pressed': String(chosen.includes(u.id)), onclick: () => {
+          if (chosen.includes(u.id)) meta.headStats = chosen.filter((x) => x !== u.id);
+          else if (chosen.length < K.HEAD_SLOTS) meta.headStats = [...chosen, u.id];
+          else return toast(`Pick up to ${K.HEAD_SLOTS} — tap one to remove it first`);
+          save();
+        } }, u.name))));
+    }
+    return h('div', {}, h('div', { class: 'menu-cap' }, 'Schematic'), group, h('div', { class: 'menu-cap' }, 'Head start'), head, h('div', { class: 'menu-cap' }, 'Automation'), toggles, editor);
   }
 
   // ----- Monthly event -----
@@ -474,6 +526,16 @@ function mountLobby(view, ui) {
     const best = Object.entries(meta.best || {}).sort((a, b) => +a[0] - +b[0]);
     return h('div', {},
       h('div', { class: 'set-group' }, ...rows.map(([k, v]) => h('div', { class: 'set-item' }, h('div', { class: 'lbl' }, k), h('b', {}, v)))),
+      h('div', { class: 'menu-cap' }, `Enemy mastery · +${Math.round(K.MASTERY_PER * 100)}% damage per level`),
+      h('div', { class: 'set-group' }, ...Object.entries(K.TYPES).filter(([t, T]) => T.tier <= meta.maxTier && t !== 'mini').map(([t, T]) => {
+        const n = ((meta.records || {}).killsBy || {})[t] || 0;
+        const L = K.masteryLevel(meta, t);
+        const next = K.MASTERY_STEPS[L];
+        return h('div', { class: 'set-item' }, h('div', { class: 'ks-ally-ico', style: { '--ac': T.color } }),
+          h('div', { class: 'lbl' }, T.name, h('span', { class: 'ks-lvl' }, `Lv ${L}/${K.MASTERY_STEPS.length}`),
+            h('div', { class: 'ks-bar', style: { marginTop: '6px' } }, h('i', { style: { width: `${next ? Math.min(100, (n / next) * 100) : 100}%`, background: T.color } })),
+            h('small', {}, next ? `${fmtNum(n)} / ${fmtNum(next)} defeated` : `${fmtNum(n)} defeated · mastered`)));
+      })),
       h('div', { class: 'menu-cap' }, 'Best wave per tier'),
       h('div', { class: 'ks-tiers' }, ...best.map(([t, w]) => h('div', {}, h('small', {}, `Tier ${t}`), h('b', {}, String(w))))),
       h('p', { class: 'hint' }, 'Records count from this update onward, except runs and best waves.'));
@@ -537,6 +599,7 @@ function showHelp() {
     h('p', {}, h('b', {}, 'Perks: '), `every ${K.PERK_EVERY} waves you choose 1 of 3 perks for the rest of the run (or let them be picked for you).`),
     h('p', {}, h('b', {}, 'Gear'), ' drops from Wardens and milestones. Equip a few pieces before a run; three of a kind merge into a rarer one.'),
     h('p', {}, h('b', {}, 'Build: '), 'choose a schematic and switch on Auto-buy to have upgrades bought for you toward that build.'),
+    h('p', {}, h('b', {}, 'Unlocks as you climb: '), 'Splash, Dodge, Bounty and the research queue at tier 2; Pierce, Reflection, Overkill coins and Head start at tier 3; Chill, Slowing aura and Kill streaks at tier 4; Burn and the Gunner ally at tier 5; Elite damage, Shield drones and the Frost ally at tier 6; the Sniper ally at tier 8. Enemy mastery grows as you defeat each enemy type.'),
     h('p', {}, h('b', {}, 'Monthly events'), ' change the rules each month. Event runs earn tokens for the event tree (shards, gear, relics and an exclusive keep colour). Tokens and the tree reset at month’s end; rewards stay.'),
     h('p', {}, h('b', {}, 'Missions'), ' refresh daily and weekly; milestones are one-time goals. All pay shards.'),
     h('p', {}, h('b', {}, 'Enemies: '), 'Blocks are steady, Darts fast, Brutes tough, Spitters shoot from range. Later tiers add Bulwarks (shielded until half health), Splitters, Menders (heal others), Phantoms (blink closer) and gold-edged elites.'),
@@ -790,7 +853,10 @@ function mountRun(view, ui, asEvent = false) {
         banners.push({ text: 'Free upgrade!', sub: `${u.name} +${e.n}`, t: 0, gold: true });
         ringFx(0, 0, '#ffd34d', K.TOWER_R + 26, 0.5, 4);
         refreshList();
-      } else if (e.t === 'blocked') {
+      } else if (e.t === 'dodge') { if (clock - lastBlockFx > 0.2) { lastBlockFx = clock; ringFx(0, 0, '#ffffff', K.TOWER_R + 18, 0.25, 3); } }
+      else if (e.t === 'intercept') { sparks(e.x, e.y, '#9fd0ff', 8, 120, 0.3); ringFx(e.x, e.y, '#9fd0ff', 14, 0.25, 2); }
+      else if (e.t === 'splash') { if (Math.random() < 0.6) ringFx(e.x, e.y, '#ffb36b', 48, 0.28, 3); }
+      else if (e.t === 'blocked') {
         if (clock - lastBlockFx > 0.25) { lastBlockFx = clock; ringFx(0, 0, '#9fb8d6', K.TOWER_R + 12, 0.25, 3); }
       } else if (e.t === 'wave') {
         const parts2 = [];
@@ -944,6 +1010,8 @@ function mountRun(view, ui, asEvent = false) {
       ctx.lineWidth = T.boss ? 3 : e.elite ? 3 : 1.5;
       ctx.strokeStyle = e.elite ? '#ffd34d' : run.fx.freeze > 0 ? '#d6f1ff' : 'rgba(255,255,255,.35)';
       ctx.stroke();
+      if (e.chillT > 0) { shapePath(e.x, e.y, e.size + 3, T.shape, spinRot); ctx.strokeStyle = '#bfe8ff'; ctx.lineWidth = 2; ctx.stroke(); }
+      if (e.burnT > 0) { ctx.fillStyle = `rgba(255,140,60,${0.35 + 0.25 * Math.sin(clock * 18 + e.id)})`; shapePath(e.x, e.y + 1, e.size * 0.7, T.shape, spinRot); ctx.fill(); }
       // gem-like inner facet
       shapePath(e.x - e.size * 0.12, e.y - e.size * 0.12, e.size * 0.5, T.shape, spinRot);
       ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fill();
@@ -975,7 +1043,7 @@ function mountRun(view, ui, asEvent = false) {
       tr.push(p.x, p.y);
       if (tr.length > 18) tr.splice(0, 2);
       if (!p._seen) { p._seen = true; if (p.x === 0 && p.y === 0) muzzle.push({ a: Math.atan2(p.ty, p.tx), t: 0 }); }
-      const col = p.crit ? '#ffd34d' : C.idle;
+      const col = p.ally ? (K.ALLIES.find((a) => a.id === p.ally) || {}).color : p.crit ? '#ffd34d' : (C.keep || C.idle);
       ctx.strokeStyle = col; ctx.lineCap = 'round';
       for (let k = 2; k < tr.length; k += 2) {
         ctx.globalAlpha = (k / tr.length) * 0.85;
@@ -1061,6 +1129,26 @@ function mountRun(view, ui, asEvent = false) {
       glow(Math.cos(m.a) * (K.TOWER_R + 6), Math.sin(m.a) * (K.TOWER_R + 6), 18, '#ffffff', a * 0.6);
     }
     normal();
+    // slowing aura
+    if (s.aura > 0) { ctx.strokeStyle = '#9fd0ff'; ctx.globalAlpha = 0.18 + 0.06 * Math.sin(clock * 2); ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, 0, 130, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+    // allies orbit the keep
+    K.ALLIES.forEach((a, i) => {
+      if (!K.allyLv(meta, a.id)) return;
+      const ang = run.time * 0.8 + i * (Math.PI * 2 / 3);
+      const ax = Math.cos(ang) * 48, ay = Math.sin(ang) * 48;
+      additive(); glow(ax, ay, 16, a.color, 0.7); normal();
+      shapePath(ax, ay, 7, a.snipe ? 3 : a.chill ? 6 : 4, ang); ctx.fillStyle = a.color; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.2; ctx.stroke();
+    });
+    // shield drones
+    for (let k = 0; k < (s.drones || 0); k++) {
+      const ang = -run.time * 1.6 + k * (Math.PI * 2 / Math.max(1, s.drones));
+      const ready = !(run.droneCd[k] > 0);
+      const dx = Math.cos(ang) * 64, dy = Math.sin(ang) * 64;
+      ctx.globalAlpha = ready ? 1 : 0.35;
+      ctx.fillStyle = '#9fd0ff'; ctx.beginPath(); ctx.arc(dx, dy, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     // rotating outer segments
     ctx.save(); ctx.rotate(clock * (od ? 2.4 : 0.6));
     ctx.strokeStyle = C.idle; ctx.globalAlpha = 0.5; ctx.lineWidth = 2;

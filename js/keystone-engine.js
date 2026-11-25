@@ -21,8 +21,8 @@ export const TIER_UNLOCK_WAVE = 40;
 
 // ---------- Tier scaling ----------
 export const TIER = {
-  hp: 8,          // enemy health ×8 per tier
-  dmg: 4,        // enemy damage ×4 per tier
+  hp: 9.5,        // enemy health ×9.5 per tier
+  dmg: 4.5,      // enemy damage ×4.5 per tier
   coins: 2.2,    // coins ×2.2 per tier
   shards: 1.25,  // shards ×1.25 per tier
   growth: 0.008, // enemies also grow faster per wave in higher tiers
@@ -70,16 +70,29 @@ export const RUN_UPGRADES = [
   { id: 'super',  tab: 'attack',  name: 'Super crit',   c0: 90, g: 1.35, max: 25, tier: 3, val: (L) => 0.02 * L, fmt: 'pct' },
   { id: 'distm',  tab: 'attack',  name: 'Distance damage', c0: 40, g: 1.28, max: 30, val: (L) => 0.015 * L, fmt: 'dist' },
   { id: 'mshots', tab: 'attack',  name: 'Multishot count', c0: 400, g: 2.2, max: 6, val: (L) => 1 + L, fmt: 'shots' },
+  { id: 'splash', tab: 'attack',  name: 'Splash damage',   c0: 60,  g: 1.32, max: 20, tier: 2, val: (L) => 0.025 * L, fmt: 'splash' },
+  { id: 'pierce', tab: 'attack',  name: 'Pierce',          c0: 200, g: 2.4,  max: 3,  tier: 3, val: (L) => L, fmt: 'pierce' },
+  { id: 'chill',  tab: 'attack',  name: 'Chill on hit',    c0: 60,  g: 1.3,  max: 20, tier: 4, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'burn',   tab: 'attack',  name: 'Burn',            c0: 80,  g: 1.32, max: 20, tier: 5, val: (L) => 0.03 * L, fmt: 'burn' },
+  { id: 'eliteb', tab: 'attack',  name: 'Elite & boss damage', c0: 70, g: 1.28, max: 30, tier: 6, val: (L) => 0.05 * L, fmt: 'plus' },
   { id: 'hp',     tab: 'defense', name: 'Max health',   c0: 6,  g: 1.16, val: (L) => 60 * (1 + 0.3 * L) * g104(L), fmt: 'num' },
   { id: 'regen',  tab: 'defense', name: 'Regeneration', c0: 8,  g: 1.18, val: (L) => (0.5 + 0.6 * L) * g104(L), fmt: 'regen' },
   { id: 'armor',  tab: 'defense', name: 'Armor',        c0: 18, g: 1.23, max: 30, val: (L) => 0.015 * L, fmt: 'pct' },
   { id: 'thorns', tab: 'defense', name: 'Thorns',       c0: 22, g: 1.22, max: 25, val: (L) => 0.02 * L, fmt: 'pct' },
   { id: 'wall',   tab: 'defense', name: 'Wall',         c0: 25, g: 1.25, max: 20, val: (L) => 0.1 * L, fmt: 'wallpct' },
   { id: 'leech',  tab: 'defense', name: 'Lifesteal',    c0: 40, g: 1.3,  max: 20, tier: 2, val: (L) => 0.005 * L, fmt: 'pctx' },
+  { id: 'waveheal', tab: 'defense', name: 'Heal on wave clear', c0: 40, g: 1.3, max: 15, val: (L) => 0.01 * L, fmt: 'healpct' },
+  { id: 'dodge',  tab: 'defense', name: 'Dodge',           c0: 55,  g: 1.32, max: 15, tier: 2, val: (L) => 0.01 * L, fmt: 'pct' },
+  { id: 'reflect', tab: 'defense', name: 'Ranged reflection', c0: 50, g: 1.28, max: 20, tier: 3, val: (L) => 0.02 * L, fmt: 'reflect' },
+  { id: 'aura',   tab: 'defense', name: 'Slowing aura',    c0: 70,  g: 1.32, max: 15, tier: 4, val: (L) => 0.02 * L, fmt: 'aura' },
+  { id: 'drones', tab: 'defense', name: 'Shield drones',   c0: 300, g: 2.5,  max: 3,  tier: 6, val: (L) => L, fmt: 'drones' },
   { id: 'thresh', tab: 'defense', name: 'Damage threshold', c0: 35, g: 1.3, max: 25, val: (L) => 0.0016 * L, fmt: 'thresh' },
   { id: 'salvage', tab: 'defense', name: 'Salvage',     c0: 70, g: 1.5,  max: 10, tier: 6, val: (L) => 0.003 * L, fmt: 'pctx' },
   { id: 'coins',  tab: 'economy', name: 'Coin bonus',   c0: 25, g: 1.24, val: (L) => 0.1 * L, fmt: 'plus' },
   { id: 'wavec',  tab: 'economy', name: 'Wave bonus',   c0: 35, g: 1.28, val: (L) => 4 * L, fmt: 'wave' },
+  { id: 'bounty', tab: 'economy', name: 'Bounty',          c0: 40,  g: 1.27, max: 30, tier: 2, val: (L) => 0.1 * L, fmt: 'bounty' },
+  { id: 'overkill', tab: 'economy', name: 'Overkill coins', c0: 50, g: 1.28, max: 20, tier: 3, val: (L) => 0.05 * L, fmt: 'overkill' },
+  { id: 'streak', tab: 'economy', name: 'Kill streak bonus', c0: 55, g: 1.28, max: 20, tier: 4, val: (L) => 0.002 * L, fmt: 'streak' },
   { id: 'interest', tab: 'economy', name: 'Interest',   c0: 50, g: 1.3, max: 20, val: (L) => 0.005 * L, fmt: 'interest' },
   { id: 'freea',  tab: 'economy', name: 'Free attack upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
   { id: 'freean', tab: 'economy', name: 'Free attack amount',  c0: 300, g: 2, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
@@ -103,6 +116,7 @@ export const PERM_UPGRADES = [
   { id: 'pcrit',  name: 'Keen eye',         desc: '+1% crit chance',          c0: 15, g: 1.3,  max: 20, val: (L) => 0.01 * L },
   { id: 'pshard', name: 'Shard lens',       desc: '×1.05 shards',             c0: 25, g: 1.2,  val: (L) => Math.pow(1.05, L) },
   { id: 'poffl',  name: 'Night watch',      desc: '+25% offline shards',      c0: 15, g: 1.3,  max: 20, val: (L) => 1 + 0.25 * L },
+  { id: 'phead',  name: 'Head start',       desc: '+1 starting level in each of your chosen stats', c0: 150, g: 1.45, max: 25, tier: 3, val: (L) => L },
   { id: 'plast',  name: 'Last stand',       desc: 'Once per run, survive a fatal blow (+10% health per level)', c0: 250, g: 2.4, max: 5, val: (L) => (L ? 0.2 + 0.1 * L : 0) },
 ];
 export const PERM_BY_ID = Object.fromEntries(PERM_UPGRADES.map((u) => [u.id, u]));
@@ -278,10 +292,10 @@ function gearCritAdd(meta) {
 // weights: it tracks the coins each upgrade has received this run and buys the one
 // furthest behind its share (so prices don't skew the build).
 export const SCHEMATICS = [
-  { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2, distm: 2, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 1, interest: 2, freee: 1, freeen: 1 } },
-  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 2, crit: 3, critx: 3, multi: 3, bounce: 3, exec: 2, knock: 1, super: 3, hp: 2, regen: 1, armor: 1, thorns: 0, wall: 1, leech: 2, salvage: 0, coins: 1, wavec: 1, distm: 3, mshots: 2, freea: 2, freean: 1, thresh: 1, freed: 0, freedn: 0, interest: 1, freee: 0, freeen: 0 } },
-  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 2, rate: 1, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0 } },
-  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy first, with just enough to survive', w: { dmg: 2, rate: 1, range: 0, crit: 0, critx: 0, multi: 0, bounce: 0, exec: 0, knock: 0, super: 0, hp: 2, regen: 1, armor: 0, thorns: 0, wall: 0, leech: 0, salvage: 0, coins: 4, wavec: 4, distm: 0, mshots: 0, thresh: 0, interest: 4, freea: 2, freean: 1, freed: 2, freedn: 1, freee: 3, freeen: 2 } },
+  { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2, distm: 2, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 1, interest: 2, freee: 1, freeen: 1, splash: 2, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 2, reflect: 1, aura: 1, drones: 1, bounty: 1, overkill: 1, streak: 1 } },
+  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 2, crit: 3, critx: 3, multi: 3, bounce: 3, exec: 2, knock: 1, super: 3, hp: 2, regen: 1, armor: 1, thorns: 0, wall: 1, leech: 2, salvage: 0, coins: 1, wavec: 1, distm: 3, mshots: 2, freea: 2, freean: 1, thresh: 1, freed: 0, freedn: 0, interest: 1, freee: 0, freeen: 0, splash: 3, pierce: 3, chill: 1, burn: 2, eliteb: 2, waveheal: 1, dodge: 1, reflect: 0, aura: 0, drones: 0, bounty: 0, overkill: 0, streak: 0 } },
+  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 2, rate: 1, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 0, chill: 2, burn: 0, eliteb: 0, waveheal: 4, dodge: 4, reflect: 3, aura: 3, drones: 3, bounty: 0, overkill: 0, streak: 0 } },
+  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy first, with just enough to survive', w: { dmg: 2, rate: 1, range: 0, crit: 0, critx: 0, multi: 0, bounce: 0, exec: 0, knock: 0, super: 0, hp: 2, regen: 1, armor: 0, thorns: 0, wall: 0, leech: 0, salvage: 0, coins: 4, wavec: 4, distm: 0, mshots: 0, thresh: 0, interest: 4, freea: 2, freean: 1, freed: 2, freedn: 1, freee: 3, freeen: 2, splash: 0, pierce: 0, chill: 0, burn: 0, eliteb: 0, waveheal: 1, dodge: 0, reflect: 0, aura: 0, drones: 0, bounty: 4, overkill: 3, streak: 3 } },
 ];
 export const schematicWeights = (meta) => {
   if (meta.schematic === 'custom') return meta.customSchematic || SCHEMATICS[0].w;
@@ -582,6 +596,47 @@ export function eventClaimable(meta) {
   return n;
 }
 
+
+// ---------- Allies (turrets that orbit the keep) ----------
+// Bought and levelled with shards. Their damage is a share of the keep's.
+export const ALLIES = [
+  { id: 'gunner', name: 'Gunner', tier: 5, color: '#f2c84b', desc: 'Rapid fire at the nearest enemy', rate: 2.2, dmg: 0.22, unlock: 30 },
+  { id: 'frost',  name: 'Frost',  tier: 6, color: '#8fd3ff', desc: 'Chills targets, slowing them by 50%', rate: 1.1, dmg: 0.12, chill: true, unlock: 50 },
+  { id: 'sniper', name: 'Sniper', tier: 8, color: '#e05a7a', desc: 'Huge shots at the toughest enemy, any range', rate: 0.35, dmg: 2, snipe: true, unlock: 80 },
+];
+export const ALLY_MAX = 50;
+export const allyUnlocked = (meta, id) => ALLIES.find((a) => a.id === id).tier <= (meta.maxTier || 1);
+export const allyLv = (meta, id) => (meta.allies || {})[id] || 0;
+export function allyCost(meta, id) {
+  const a = ALLIES.find((x) => x.id === id);
+  const L = allyLv(meta, id);
+  if (L >= ALLY_MAX || !allyUnlocked(meta, id)) return Infinity;
+  const base = rewardScale(meta);
+  return Math.ceil(L === 0 ? base * a.unlock : base * 1.5 * Math.pow(1.16, L));
+}
+export function buyAlly(meta, id) {
+  const c = allyCost(meta, id);
+  if (!isFinite(c) || meta.shards < c) return false;
+  meta.shards -= c;
+  meta.allies = meta.allies || {};
+  meta.allies[id] = allyLv(meta, id) + 1;
+  return true;
+}
+const allyPower = (L) => Math.pow(1.08, L - 1) * (1 + 0.03 * (L - 1));
+
+// ---------- Enemy mastery (lifetime kills per enemy type) ----------
+export const MASTERY_STEPS = [100, 500, 2000, 8000, 25000, 75000, 200000, 500000, 1000000, 2500000];
+export const MASTERY_PER = 0.03;
+export function masteryLevel(meta, type) {
+  const n = ((meta.records || {}).killsBy || {})[type] || 0;
+  let L = 0; while (L < MASTERY_STEPS.length && n >= MASTERY_STEPS[L]) L++;
+  return L;
+}
+
+// ---------- Head start ----------
+export const HEAD_SLOTS = 3;
+export const headStartEligible = (u) => !u.free && (u.max == null || u.max >= 10);
+
 // ---------- Game speed ----------
 export const maxSpeed = (meta) => { const t = meta.maxTier || 1; return t >= 5 ? 5 : t >= 3 ? 4 : 3; };
 
@@ -593,6 +648,7 @@ export function newMeta() {
     best: {}, maxTier: 1, tier: 1, bestWave: 0, runs: 0, lastSeen: Date.now(),
     gear: {}, loadout: [], schematic: 'balanced', customSchematic: null, autoBuy: false, autoPerk: true,
     missions: {}, records: {}, event: {}, skins: {}, skin: null,
+    allies: {}, labQueue: [], headStats: ['dmg', 'hp', 'rate'],
   };
 }
 
@@ -643,10 +699,12 @@ export function mult(meta, key) {
   }
 }
 
+export const permUnlocked = (meta, id) => (PERM_BY_ID[id].tier || 1) <= (meta.maxTier || 1);
 export function permCost(meta, id) {
   const u = PERM_BY_ID[id];
   const L = lvl(meta.perm, id);
   if (u.max != null && L >= u.max) return Infinity;
+  if (!permUnlocked(meta, id)) return Infinity;
   return Math.ceil(u.c0 * Math.pow(u.g, L));
 }
 
@@ -674,13 +732,41 @@ export function startResearch(meta, id, now = Date.now()) {
   return true;
 }
 // Completes finished projects; returns their ids.
+export const queueUnlocked = (meta) => (meta.maxTier || 1) >= 2;
+export const QUEUE_MAX = 5;
+export function queueResearch(meta, id) {
+  meta.labQueue = meta.labQueue || [];
+  if (!queueUnlocked(meta) || meta.labQueue.length >= QUEUE_MAX || meta.labQueue.includes(id) || !researchAvailable(meta, id)) return false;
+  meta.labQueue.push(id);
+  return true;
+}
+export function unqueueResearch(meta, id) { meta.labQueue = (meta.labQueue || []).filter((x) => x !== id); }
+// Completes finished projects (and starts queued ones the moment a slot frees,
+// even while you were away). Returns ids of finished projects.
 export function collectResearch(meta, now = Date.now()) {
   const done = [];
-  meta.lab = (meta.lab || []).filter((j) => {
-    if (j.end <= now) { meta.research[j.id] = lvl(meta.research, j.id) + 1; done.push(j.id); return false; }
-    return true;
-  });
+  for (let guard = 0; guard < 200; guard++) {
+    const lab = meta.lab || [];
+    let first = null;
+    for (const j of lab) if (j.end <= now && (!first || j.end < first.end)) first = j;
+    if (!first) break;
+    meta.research[first.id] = lvl(meta.research, first.id) + 1;
+    done.push(first.id);
+    meta.lab = lab.filter((j) => j !== first);
+    startFromQueue(meta, first.end);
+  }
+  startFromQueue(meta, now);
   return done;
+}
+function startFromQueue(meta, at) {
+  const q = meta.labQueue || [];
+  while (q.length && (meta.lab || []).length < researchSlots(meta)) {
+    const id = q[0];
+    if (isResearching(meta, id) || !isFinite(researchCost(meta, id))) { q.shift(); continue; }
+    if (researchCost(meta, id) > meta.shards) break;
+    q.shift();
+    startResearch(meta, id, at);
+  }
 }
 
 // ---------- Stats ----------
@@ -716,8 +802,12 @@ export function stats(run, meta) {
     cdMult: Math.pow(0.85, p('k_cd')),
     distm: v('distm'),
     mshots: v('mshots'),
+    mastery: Object.fromEntries(Object.keys(TYPES).map((t) => [t, masteryLevel(meta, t)])),
     thresh: v('thresh'),
     interest: v('interest'),
+    splash: v('splash'), pierce: v('pierce'), chill: v('chill'), burn: v('burn'), eliteb: v('eliteb'),
+    waveheal: v('waveheal'), dodge: v('dodge'), reflect: v('reflect'), aura: v('aura'), drones: v('drones'),
+    bounty: v('bounty'), overkill: v('overkill'), streak: v('streak'),
     free: { attack: [v('freea'), v('freean')], defense: [v('freed'), v('freedn')], economy: [v('freee'), v('freeen')] },
   };
 }
@@ -788,8 +878,16 @@ export function newRun(meta, tier = meta.tier || 1, eventTheme = null) {
     cds: {}, fireT: 0, time: 0, orbitT: 0,
     kills: 0, bossKills: 0, coinsEarned: 0, relicsFound: [], gearFound: [], over: false, nextId: 1,
     perks: {}, offer: null, wall: 0, wallT: 0, lastStand: false, invuln: 0,
+    allyT: {}, droneCd: [0, 0, 0], streak: 0, lastKillT: -9,
     stats: newRunStats(),
   };
+  // head start: free starting levels in the chosen stats
+  const hs = permVal(meta, 'phead');
+  if (hs > 0) for (const id of (meta.headStats || []).slice(0, HEAD_SLOTS)) {
+    const u = RUN_BY_ID[id];
+    if (!u || (u.tier || 1) > tier || !headStartEligible(u)) continue;
+    run.levels[id] = u.max != null ? Math.min(u.max, hs) : hs;
+  }
   const s = stats(run, meta);
   run.hp = s.maxHp;
   run.wall = s.wallMax;
@@ -844,6 +942,7 @@ function spawn(run, type, rand, at) {
 
 function hitTower(run, meta, s, dmg, events, src = 'melee', who = null) {
   if (run.invuln > 0) return;
+  if (s.dodge > 0 && Math.random() < s.dodge) { run.stats.dodged = (run.stats.dodged || 0) + 1; events.push({ t: 'dodge' }); return; }
   let taken = dmg * (1 - s.armor);
   // damage threshold: hits are reduced by a flat amount (a share of max health)
   if (s.thresh > 0) {
@@ -879,6 +978,10 @@ function hitTower(run, meta, s, dmg, events, src = 'melee', who = null) {
 function damage(run, meta, s, e, amount, events, rand, src = 'shot') {
   const T = TYPES[e.type];
   if (T.boss) amount *= s.boss;
+  if ((T.boss || e.elite) && s.eliteb) amount *= 1 + s.eliteb;
+  const mL = (s.mastery || {})[e.type];
+  if (mL) amount *= 1 + MASTERY_PER * mL;
+  if (amount >= 2 * e.hp && e.hp > 0) e.overkill = true;
   if (T.shielded && e.hp > e.maxHp * 0.5) amount *= 0.5;
   const dealt = Math.min(Math.max(0, e.hp), amount);
   e.hp -= amount;
@@ -895,7 +998,14 @@ function damage(run, meta, s, e, amount, events, rand, src = 'shot') {
 function killEnemy(run, meta, s, e, events, rand = Math.random) {
   e.dead = true;
   const T = TYPES[e.type];
-  const c = enemyCoins(run.wave, run.tier) * ((run.mod && run.mod.coins) || 1) * T.coins * s.coinMult * (e.elite ? 4 : 1);
+  run.streak = run.time - run.lastKillT < 1.5 ? run.streak + 1 : 1;
+  run.lastKillT = run.time;
+  let c = enemyCoins(run.wave, run.tier) * ((run.mod && run.mod.coins) || 1) * T.coins * s.coinMult * (e.elite ? 4 : 1);
+  if ((e.elite || T.boss) && s.bounty) c *= 1 + s.bounty;
+  if (e.overkill && s.overkill) c *= 1 + s.overkill;
+  if (s.streak) c *= 1 + s.streak * Math.min(20, run.streak);
+  const KB = (meta.records || (meta.records = {})).killsBy || (meta.records.killsBy = {});
+  KB[e.type] = (KB[e.type] || 0) + 1;
   run.coins += c; run.coinsEarned += c; run.kills++;
   run.stats.killsBy[e.type] = (run.stats.killsBy[e.type] || 0) + 1;
   track(meta, 'kills', 1);
@@ -1034,6 +1144,7 @@ export function step(run, meta, dt, rand = Math.random) {
       run.stats.interest = (run.stats.interest || 0) + intr;
       if (intr >= 1) events.push({ t: 'interest', v: intr });
     }
+    if (s.waveheal > 0) { const hh = Math.min(s.maxHp - run.hp, s.maxHp * s.waveheal); if (hh > 0) { run.hp += hh; run.stats.healed += hh; } }
     // free upgrades: each tab rolls once per wave
     for (const tab of ['attack', 'defense', 'economy']) {
       const [chance, amount] = s.free[tab];
@@ -1063,10 +1174,13 @@ export function step(run, meta, dt, rand = Math.random) {
   }
 
   // enemies move / attack / special behaviour
-  const slow = run.fx.freeze > 0 ? 0.3 : 1;
+  const freezeSlow = run.fx.freeze > 0 ? 0.3 : 1;
   for (const e of run.enemies) {
     const T = TYPES[e.type];
     const d = Math.hypot(e.x, e.y) || 1;
+    if (e.chillT > 0) e.chillT -= dt;
+    const slow = freezeSlow * (e.chillT > 0 ? (e.chillAmt || 0.6) : 1) * (s.aura > 0 && d < 130 ? 1 - s.aura : 1);
+    if (e.burnT > 0) { e.burnT -= dt; damage(run, meta, s, e, e.burnDps * dt, events, rand, 'burn'); if (e.hp <= 0) continue; }
     e.spin += dt * (T.boss ? 0.4 : 1.2);
     if (e.push > 0) {
       const p = Math.min(e.push, 260 * dt);
@@ -1089,7 +1203,7 @@ export function step(run, meta, dt, rand = Math.random) {
       if (e.atkT <= 0) {
         if (T.ranged) {
           e.atkT = T.fireEvery;
-          run.bolts.push({ x: e.x, y: e.y, dmg: e.dmg, speed: 150, who: e.type });
+          run.bolts.push({ x: e.x, y: e.y, dmg: e.dmg, speed: 150, who: e.type, from: e.id });
         } else {
           e.atkT = 1;
           hitTower(run, meta, s, e.dmg, events, 'melee', e.type);
@@ -1113,11 +1227,20 @@ export function step(run, meta, dt, rand = Math.random) {
     }
   }
 
-  // enemy bolts
+  // enemy bolts (drones may intercept; reflection hurts the shooter)
+  for (let k = 0; k < run.droneCd.length; k++) if (run.droneCd[k] > 0) run.droneCd[k] -= dt;
   for (const b of run.bolts) {
     const d = Math.hypot(b.x, b.y);
     const mv = b.speed * dt;
-    if (d <= TOWER_R + mv) { b.hit = true; hitTower(run, meta, s, b.dmg, events, 'ranged', b.who); }
+    if (s.drones > 0 && d < 75) {
+      const k = run.droneCd.findIndex((c, i) => i < s.drones && c <= 0);
+      if (k >= 0) { run.droneCd[k] = 4; b.hit = true; run.stats.intercepted = (run.stats.intercepted || 0) + 1; events.push({ t: 'intercept', x: b.x, y: b.y }); continue; }
+    }
+    if (d <= TOWER_R + mv) {
+      b.hit = true;
+      hitTower(run, meta, s, b.dmg, events, 'ranged', b.who);
+      if (s.reflect > 0) { const src = run.enemies.find((x) => x.id === b.from); if (src && src.hp > 0) damage(run, meta, s, src, src.maxHp * s.reflect, events, rand, 'reflect'); }
+    }
     else { b.x -= (b.x / d) * mv; b.y -= (b.y / d) * mv; }
   }
   run.bolts = run.bolts.filter((b) => !b.hit);
@@ -1136,7 +1259,7 @@ export function step(run, meta, dt, rand = Math.random) {
         const crit = rand() < s.crit;
         const sup = crit && rand() < s.superc;
         const far = 1 + s.distm * (d / 100); // distance damage: +x% per 100 units
-        run.shots.push({ x: 0, y: 0, target: e.id, tx: e.x, ty: e.y, dmg: s.dmg * far * (crit ? s.critx : 1) * (sup ? 4 : 1), crit, sup, speed: 560, bounces: s.bounce });
+        run.shots.push({ x: 0, y: 0, target: e.id, tx: e.x, ty: e.y, dmg: s.dmg * far * (crit ? s.critx : 1) * (sup ? 4 : 1), crit, sup, speed: 560, bounces: s.bounce, pierces: s.pierce });
       };
       fire(inRange[0][0], inRange[0][1]);
       run.aim = Math.atan2(inRange[0][0].y, inRange[0][0].x);
@@ -1145,6 +1268,22 @@ export function step(run, meta, dt, rand = Math.random) {
         for (let k = 0; k < s.mshots; k++) { const t = inRange[1 + (k % (inRange.length - 1))]; fire(t[0], t[1]); }
       }
     } else run.fireT = 0;
+  }
+
+  // allies orbit the keep and fire on their own
+  for (const a of ALLIES) {
+    const L = allyLv(meta, a.id);
+    if (!L) continue;
+    run.allyT[a.id] = (run.allyT[a.id] || 0) - dt;
+    if (run.allyT[a.id] > 0 || !run.enemies.length) continue;
+    let target = null;
+    if (a.snipe) { for (const e of run.enemies) if (!target || e.maxHp > target.maxHp) target = e; }
+    else { let bd = s.range; for (const e of run.enemies) { const d = Math.hypot(e.x, e.y); if (d <= bd) { bd = d; target = e; } } }
+    if (!target) continue;
+    run.allyT[a.id] = 1 / a.rate;
+    const ang = run.time * 0.8 + ALLIES.indexOf(a) * (Math.PI * 2 / 3);
+    const ax = Math.cos(ang) * 48, ay = Math.sin(ang) * 48;
+    run.shots.push({ x: ax, y: ay, target: target.id, tx: target.x, ty: target.y, dmg: s.dmg * a.dmg * allyPower(L), crit: false, speed: a.snipe ? 900 : 620, bounces: 0, ally: a.id, chillAlly: !!a.chill });
   }
 
   // shots (homing, may ricochet)
@@ -1159,8 +1298,30 @@ export function step(run, meta, dt, rand = Math.random) {
     if (d <= mv + (e ? e.size * 0.6 : 2)) {
       p.done = true;
       if (e && e.hp > 0) {
-        damage(run, meta, s, e, p.dmg, events, rand, p.bounced ? 'bounce' : p.sup ? 'super' : p.crit ? 'crit' : 'shot');
-        events.push({ t: 'hit', id: e.id, x: e.x, y: e.y, dmg: p.dmg, crit: p.crit, sup: p.sup });
+        const ex = e.x, ey = e.y;
+        damage(run, meta, s, e, p.dmg, events, rand, p.ally ? 'ally' : p.pierced ? 'pierce' : p.bounced ? 'bounce' : p.sup ? 'super' : p.crit ? 'crit' : 'shot');
+        events.push({ t: 'hit', id: e.id, x: ex, y: ey, dmg: p.dmg, crit: p.crit, sup: p.sup, ally: p.ally });
+        if (p.chillAlly && e.hp > 0) { e.chillT = 1.5; e.chillAmt = 0.5; }
+        if (!p.ally) {
+          if (s.chill > 0 && e.hp > 0 && rand() < s.chill) { e.chillT = 2; e.chillAmt = 0.6; }
+          if (s.burn > 0 && e.hp > 0) { e.burnT = 3; e.burnDps = Math.max(e.burnDps && e.burnT > 0 ? e.burnDps : 0, (p.dmg * s.burn) / 3); }
+          if (s.splash > 0) {
+            for (const o of run.enemies) if (o !== e && o.hp > 0 && Math.hypot(o.x - ex, o.y - ey) < 48) damage(run, meta, s, o, p.dmg * s.splash, events, rand, 'splash');
+            events.push({ t: 'splash', x: ex, y: ey });
+          }
+          if (p.pierces > 0) {
+            // continue along the same line to the next enemy behind
+            const ang = Math.atan2(ey, ex);
+            let next = null, nd = 1e9;
+            for (const o of run.enemies) {
+              if (o === e || o.hp <= 0) continue;
+              const od = Math.hypot(o.x, o.y), oa = Math.atan2(o.y, o.x);
+              let da = Math.abs(oa - ang); if (da > Math.PI) da = 2 * Math.PI - da;
+              if (od > Math.hypot(ex, ey) && da < 0.35 && od < nd) { nd = od; next = o; }
+            }
+            if (next) newShots.push({ x: ex, y: ey, target: next.id, tx: next.x, ty: next.y, dmg: p.dmg * 0.5, crit: p.crit, speed: 560, bounces: 0, pierces: p.pierces - 1, pierced: true });
+          }
+        }
         if (s.knock > 0 && e.hp > 0 && !TYPES[e.type].boss && rand() < s.knock) e.push = 35;
         if (p.bounces > 0) {
           let next = null, nd = 160;

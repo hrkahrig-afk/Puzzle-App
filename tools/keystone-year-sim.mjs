@@ -61,6 +61,12 @@ function spend() {
     if (!opts.length || opts[0][1] > meta.shards) break;
     K.startResearch(meta, opts[0][0], now);
   }
+  // allies: cheapest affordable, keeping some shards for the workshop
+  for (; !process.env.NOALLY;) {
+    const opts = K.ALLIES.map((x) => [x.id, K.allyCost(meta, x.id)]).filter((x) => isFinite(x[1])).sort((a, b) => a[1] - b[1]);
+    if (!opts.length || opts[0][1] > meta.shards * 0.5) break;
+    K.buyAlly(meta, opts[0][0]);
+  }
   // workshop: cheapest first
   for (;;) {
     let best = null;

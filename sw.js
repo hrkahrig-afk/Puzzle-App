@@ -1,7 +1,7 @@
 // Offline support.
 // Network-first: when online, always use the latest files (so an update can never
 // mix old and new code); fall back to the cached copy only when offline.
-const VERSION = 'v20';
+const VERSION = 'v21';
 const CACHE = 'puzzle-box-' + VERSION;
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/styles.css',
