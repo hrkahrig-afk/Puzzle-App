@@ -68,15 +68,25 @@ export const RUN_UPGRADES = [
   { id: 'exec',   tab: 'attack',  name: 'Execute',      c0: 80, g: 1.45, max: 10, tier: 4, val: (L) => 0.01 * L, fmt: 'pct' },
   { id: 'knock',  tab: 'attack',  name: 'Knockback',    c0: 30, g: 1.3,  max: 15, val: (L) => 0.04 * L, fmt: 'pct' },
   { id: 'super',  tab: 'attack',  name: 'Super crit',   c0: 90, g: 1.35, max: 25, tier: 3, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'distm',  tab: 'attack',  name: 'Distance damage', c0: 40, g: 1.28, max: 30, val: (L) => 0.015 * L, fmt: 'dist' },
+  { id: 'mshots', tab: 'attack',  name: 'Multishot count', c0: 400, g: 2.2, max: 6, val: (L) => 1 + L, fmt: 'shots' },
+  { id: 'freea',  tab: 'attack',  name: 'Free attack upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
+  { id: 'freean', tab: 'attack',  name: 'Free attack amount',  c0: 300, g: 2, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
   { id: 'hp',     tab: 'defense', name: 'Max health',   c0: 6,  g: 1.16, val: (L) => 60 * (1 + 0.3 * L) * g104(L), fmt: 'num' },
   { id: 'regen',  tab: 'defense', name: 'Regeneration', c0: 8,  g: 1.18, val: (L) => (0.5 + 0.6 * L) * g104(L), fmt: 'regen' },
   { id: 'armor',  tab: 'defense', name: 'Armor',        c0: 18, g: 1.23, max: 30, val: (L) => 0.015 * L, fmt: 'pct' },
   { id: 'thorns', tab: 'defense', name: 'Thorns',       c0: 22, g: 1.22, max: 25, val: (L) => 0.02 * L, fmt: 'pct' },
   { id: 'wall',   tab: 'defense', name: 'Wall',         c0: 25, g: 1.25, max: 20, val: (L) => 0.1 * L, fmt: 'wallpct' },
   { id: 'leech',  tab: 'defense', name: 'Lifesteal',    c0: 40, g: 1.3,  max: 20, tier: 2, val: (L) => 0.005 * L, fmt: 'pctx' },
+  { id: 'thresh', tab: 'defense', name: 'Damage threshold', c0: 35, g: 1.3, max: 25, val: (L) => 0.0016 * L, fmt: 'thresh' },
+  { id: 'freed',  tab: 'defense', name: 'Free defense upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
+  { id: 'freedn', tab: 'defense', name: 'Free defense amount',  c0: 300, g: 2, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
   { id: 'salvage', tab: 'defense', name: 'Salvage',     c0: 70, g: 1.5,  max: 10, tier: 6, val: (L) => 0.003 * L, fmt: 'pctx' },
   { id: 'coins',  tab: 'economy', name: 'Coin bonus',   c0: 25, g: 1.24, val: (L) => 0.1 * L, fmt: 'plus' },
   { id: 'wavec',  tab: 'economy', name: 'Wave bonus',   c0: 35, g: 1.28, val: (L) => 4 * L, fmt: 'wave' },
+  { id: 'interest', tab: 'economy', name: 'Interest',   c0: 50, g: 1.3, max: 20, val: (L) => 0.005 * L, fmt: 'interest' },
+  { id: 'freee',  tab: 'economy', name: 'Free economy upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
+  { id: 'freeen', tab: 'economy', name: 'Free economy amount',  c0: 300, g: 2, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
 ];
 export const RUN_BY_ID = Object.fromEntries(RUN_UPGRADES.map((u) => [u.id, u]));
 export const runUpgradesFor = (tier) => RUN_UPGRADES.filter((u) => (u.tier || 1) <= tier);
@@ -266,10 +276,10 @@ function gearCritAdd(meta) {
 // ---------- Schematics (auto-buy build priorities) ----------
 // Weights 0–4 per in-run upgrade. Auto-buy picks the upgrade with the lowest cost ÷ weight.
 export const SCHEMATICS = [
-  { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2 } },
-  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 2, crit: 3, critx: 3, multi: 3, bounce: 3, exec: 2, knock: 1, super: 3, hp: 2, regen: 1, armor: 1, thorns: 0, wall: 1, leech: 2, salvage: 0, coins: 1, wavec: 1 } },
-  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 2, rate: 1, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1 } },
-  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy early, power later',     w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 1, super: 1, hp: 3, regen: 2, armor: 1, thorns: 1, wall: 1, leech: 1, salvage: 1, coins: 4, wavec: 4 } },
+  { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2, distm: 2, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 1, interest: 2, freee: 1, freeen: 1 } },
+  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 2, crit: 3, critx: 3, multi: 3, bounce: 3, exec: 2, knock: 1, super: 3, hp: 2, regen: 1, armor: 1, thorns: 0, wall: 1, leech: 2, salvage: 0, coins: 1, wavec: 1, distm: 3, mshots: 2, freea: 2, freean: 1, thresh: 1, freed: 0, freedn: 0, interest: 1, freee: 0, freeen: 0 } },
+  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 2, rate: 1, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0 } },
+  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy early, power later',     w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 1, super: 1, hp: 3, regen: 2, armor: 1, thorns: 1, wall: 1, leech: 1, salvage: 1, coins: 4, wavec: 4, distm: 1, mshots: 1, freea: 1, freean: 0, thresh: 1, freed: 1, freedn: 0, interest: 4, freee: 2, freeen: 2 } },
 ];
 export const schematicWeights = (meta) => {
   if (meta.schematic === 'custom') return meta.customSchematic || SCHEMATICS[0].w;
@@ -588,8 +598,11 @@ const OLD_PERM = { pdmg: [8, 1.32], php: [8, 1.32], prate: [12, 1.4], pcoin: [10
 export function migrateMeta(m) {
   const base = newMeta();
   if (!m || !Object.keys(m).length) return base;
-  // v2 → v3 only adds new fields; everything already saved is kept as-is
-  if (m.v === VERSION || m.v === 2) return { ...base, ...m, v: VERSION, records: { runs: m.runs || 0, ...(m.records || {}) } };
+  // Any save with a version number (2, 3 or newer) is kept exactly as it is;
+  // missing fields are filled in, nothing is ever removed or rebuilt.
+  if (typeof m.v === 'number' && m.v >= 2) return { ...base, ...m, v: Math.max(m.v, VERSION), records: { runs: m.runs || 0, ...(m.records || {}) } };
+  // Only a genuine first-version save (no version field at all) reaches the refund below.
+  if (m.v != null || m.lab || m.research || m.maxTier || m.gear) return { ...base, ...m, v: VERSION };
   let refund = 0;
   for (const [id, L] of Object.entries(m.perm || {})) {
     const o = OLD_PERM[id];
@@ -698,6 +711,11 @@ export function stats(run, meta) {
     waveBonus: v('wavec') * tierPow('coins', run.tier),
     boss: mult(meta, 'boss') * gearVal(meta, 'boss') * Math.pow(1.5, p('k_boss')),
     cdMult: Math.pow(0.85, p('k_cd')),
+    distm: v('distm'),
+    mshots: v('mshots'),
+    thresh: v('thresh'),
+    interest: v('interest'),
+    free: { attack: [v('freea'), v('freean')], defense: [v('freed'), v('freedn')], economy: [v('freee'), v('freeen')] },
   };
 }
 
@@ -736,6 +754,19 @@ export function buy(run, meta, id, count) {
   if (run._auto) run.stats.auto = (run.stats.auto || 0) + n;
   if (id === 'hp') run.hp += stats(run, meta).maxHp - before.maxHp;
   return true;
+}
+
+// Give `amount` free levels to a random upgrade in a tab (not the free-upgrade stats themselves).
+export function grantFree(run, meta, tab, amount, rand = Math.random) {
+  const pool = runUpgradesFor(run.tier).filter((u) => u.tab === tab && !u.free && (u.max == null || lvl(run.levels, u.id) < u.max));
+  if (!pool.length) return null;
+  const u = pool[Math.floor(rand() * pool.length)];
+  const n = u.max == null ? amount : Math.min(amount, u.max - lvl(run.levels, u.id));
+  const before = stats(run, meta);
+  run.levels[u.id] = lvl(run.levels, u.id) + n;
+  if (u.id === 'hp') run.hp += stats(run, meta).maxHp - before.maxHp;
+  run.stats.free = (run.stats.free || 0) + n;
+  return { id: u.id, n };
 }
 
 // ---------- Run ----------
@@ -809,6 +840,14 @@ function spawn(run, type, rand, at) {
 function hitTower(run, meta, s, dmg, events, src = 'melee', who = null) {
   if (run.invuln > 0) return;
   let taken = dmg * (1 - s.armor);
+  // damage threshold: hits are reduced by a flat amount (a share of max health)
+  if (s.thresh > 0) {
+    const th = s.maxHp * s.thresh;
+    const cut = Math.min(taken, th);
+    taken -= cut;
+    run.stats.threshold = (run.stats.threshold || 0) + cut;
+    if (taken <= 0) { events.push({ t: 'blocked' }); return; }
+  }
   run.wallT = 4; // wall regrows after 4 s without being hit
   if (run.wall > 0) {
     const a = Math.min(run.wall, taken);
@@ -982,6 +1021,22 @@ export function step(run, meta, dt, rand = Math.random) {
   if (run.waveT >= (run.waveTime || WAVE_TIME)) {
     const bonus = s.waveBonus * run.wave;
     if (bonus) { run.coins += bonus; run.coinsEarned += bonus; }
+    // interest on unspent coins (capped so hoarding can't run away)
+    if (s.interest > 0 && run.coins > 0) {
+      const cap = 25 * enemyCoins(run.wave, run.tier) * s.coinMult;
+      const intr = Math.min(cap, run.coins * s.interest);
+      run.coins += intr; run.coinsEarned += intr;
+      run.stats.interest = (run.stats.interest || 0) + intr;
+      if (intr >= 1) events.push({ t: 'interest', v: intr });
+    }
+    // free upgrades: each tab rolls once per wave
+    for (const tab of ['attack', 'defense', 'economy']) {
+      const [chance, amount] = s.free[tab];
+      if (chance > 0 && rand() < chance) {
+        const got = grantFree(run, meta, tab, amount, rand);
+        if (got) events.push({ t: 'freeup', id: got.id, n: got.n });
+      }
+    }
     run.wave++; run.waveT = 0; run.spawned = 0; run.bossSpawned = false;
     track(meta, 'waves', 1);
     // an unanswered perk offer is auto-picked when the next one is due
@@ -1072,14 +1127,18 @@ export function step(run, meta, dt, rand = Math.random) {
       .sort((a, b) => a[1] - b[1]);
     if (inRange.length) {
       run.fireT = 1 / s.rate;
-      const fire = (e) => {
+      const fire = (e, d) => {
         const crit = rand() < s.crit;
         const sup = crit && rand() < s.superc;
-        run.shots.push({ x: 0, y: 0, target: e.id, tx: e.x, ty: e.y, dmg: s.dmg * (crit ? s.critx : 1) * (sup ? 4 : 1), crit, sup, speed: 560, bounces: s.bounce });
+        const far = 1 + s.distm * (d / 100); // distance damage: +x% per 100 units
+        run.shots.push({ x: 0, y: 0, target: e.id, tx: e.x, ty: e.y, dmg: s.dmg * far * (crit ? s.critx : 1) * (sup ? 4 : 1), crit, sup, speed: 560, bounces: s.bounce });
       };
-      fire(inRange[0][0]);
+      fire(inRange[0][0], inRange[0][1]);
       run.aim = Math.atan2(inRange[0][0].y, inRange[0][0].x);
-      if (inRange.length > 1 && rand() < s.multi) fire(inRange[1][0]);
+      // multishot: extra shots at the next-closest enemies (wrapping round if few)
+      if (inRange.length > 1 && rand() < s.multi) {
+        for (let k = 0; k < s.mshots; k++) { const t = inRange[1 + (k % (inRange.length - 1))]; fire(t[0], t[1]); }
+      }
     } else run.fireT = 0;
   }
 

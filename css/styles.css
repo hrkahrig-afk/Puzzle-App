@@ -511,3 +511,4 @@ main#view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ks-skin.locked { opacity: .4; cursor: default; }
 .ks-ev-title { color: var(--ev); text-shadow: 0 0 12px color-mix(in srgb, var(--ev) 50%, transparent); }
 .ks-ev-title small { color: var(--muted); font-family: var(--font); font-size: 13px; text-shadow: none; }
+.save-text { width: 100%; min-height: 120px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface-2); color: var(--text); padding: 10px; font: 12px/1.4 ui-monospace, monospace; word-break: break-all; resize: vertical; }

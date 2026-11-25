@@ -199,3 +199,69 @@ export function recordBest(key, seconds) {
   return false;
 }
 export function getBest(key) { return store.get('best', {})[key]; }
+
+// ---------- Save backups, export & import ----------
+// Every key the app stores starts with "pz:". Backups are full copies kept on
+// this device ("pzbak:<time>"); export/import moves them anywhere as text.
+const BAK = 'pzbak:';
+const KEEP_BACKUPS = 7;
+function snapshotAll() {
+  const data = {};
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith(P)) data[k] = localStorage.getItem(k); } catch {}
+  return data;
+}
+export function backupNow(reason = 'manual') {
+  try {
+    const t = Date.now();
+    localStorage.setItem(BAK + t, JSON.stringify({ t, reason, data: snapshotAll() }));
+    const keys = listBackups().map((b) => b.key);
+    for (const k of keys.slice(KEEP_BACKUPS)) localStorage.removeItem(k);
+    return true;
+  } catch { return false; }
+}
+export function listBackups() {
+  const out = [];
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (!k.startsWith(BAK)) continue;
+      try { const b = JSON.parse(localStorage.getItem(k)); out.push({ key: k, t: b.t, reason: b.reason, data: b.data }); } catch {}
+    }
+  } catch {}
+  return out.sort((a, b) => b.t - a.t);
+}
+// one automatic backup per ~20 hours
+export function autoBackup() {
+  const last = listBackups()[0];
+  if (!last || Date.now() - last.t > 20 * 3600 * 1000) backupNow('daily');
+}
+function replaceAll(data) {
+  for (const k of Object.keys(localStorage)) if (k.startsWith(P)) localStorage.removeItem(k);
+  for (const [k, v] of Object.entries(data)) if (k.startsWith(P)) localStorage.setItem(k, v);
+}
+export function restoreBackup(key) {
+  const b = listBackups().find((x) => x.key === key);
+  if (!b) return false;
+  backupNow('before restore');
+  replaceAll(b.data);
+  return true;
+}
+export function exportSave() {
+  return 'PUZZLEBOX1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ t: Date.now(), data: snapshotAll() }))));
+}
+export function importSave(text) {
+  const s = String(text || '').trim();
+  if (!s.startsWith('PUZZLEBOX1:')) throw new Error('That doesn’t look like a Puzzle Box save.');
+  const obj = JSON.parse(decodeURIComponent(escape(atob(s.slice(11)))));
+  if (!obj || typeof obj.data !== 'object') throw new Error('The save text is damaged.');
+  backupNow('before import');
+  replaceAll(obj.data);
+  return obj.t;
+}
+// short description of a backup for the list
+export function describeBackup(data) {
+  try {
+    const m = JSON.parse(data['pz:ks:meta'] || 'null');
+    if (m) return `Keystone tier ${m.maxTier || 1} · ${Math.floor(m.shards || 0).toLocaleString()} shards · ${m.runs || 0} runs`;
+  } catch {}
+  return `${Object.keys(data).length} saved items`;
+}

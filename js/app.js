@@ -1,6 +1,6 @@
 import {
   h, icon, iconBtn, store, getSettings, setSetting, applyTheme, todayKey, sheet, closeAllSheets,
-  getStreak, toast,
+  getStreak, toast, backupNow, listBackups, autoBackup, restoreBackup, exportSave, importSave, describeBackup,
 } from './core.js';
 
 const view = document.getElementById('view');
@@ -231,7 +231,13 @@ function renderSettings() {
     h('div', { class: 'set-group' },
       item('Hard mode', 'Revealed hints must be used in later guesses', toggle(s.hardMode, (v) => setSetting('hardMode', v))),
     ),
-    h('div', { class: 'section-label' }, 'Data'),
+    h('div', { class: 'section-label' }, 'Save data'),
+    h('div', { class: 'set-group' },
+      item('Export save', 'Copy your whole save as text to keep somewhere safe', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: showExport }, 'Export')),
+      item('Import save', 'Paste a saved text to restore it', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: showImport }, 'Import')),
+      item('Backups on this phone', 'Made automatically each day and before updates', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: showBackups }, 'View')),
+    ),
+    h('div', { class: 'section-label' }, 'Danger zone'),
     h('div', { class: 'set-group' },
       item(h('span', { class: 'danger' }, 'Reset all progress'), 'Clears stats, streaks and saved games', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: confirmReset }, 'Reset')),
     ),
@@ -246,6 +252,7 @@ function confirmReset() {
     h('div', { class: 'row' },
       h('button', { class: 'btn btn-soft', onclick: () => close() }, 'Cancel'),
       h('button', { class: 'btn btn-primary', style: { '--c': 'var(--wrong)' }, onclick: () => {
+        backupNow('before reset');
         const keep = store.get('settings', {});
         try { Object.keys(localStorage).filter((k) => k.startsWith('pz:')).forEach((k) => localStorage.removeItem(k)); } catch {}
         store.set('settings', keep);
@@ -253,7 +260,52 @@ function confirmReset() {
       } }, 'Reset'))));
 }
 
+function showExport() {
+  const text = exportSave();
+  const ta = h('textarea', { class: 'save-text', readonly: true }, text);
+  const close = sheet('Export save', h('div', {},
+    h('p', { class: 'hint', style: { textAlign: 'left' } }, 'This text is your entire save: all games, stats and Keystone progress. Keep it in a note, an email to yourself, or a file.'),
+    ta,
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn-soft', onclick: async () => {
+        try { await navigator.clipboard.writeText(text); toast('Save copied'); } catch { ta.select(); document.execCommand('copy'); toast('Save copied'); }
+      } }, 'Copy'),
+      h('button', { class: 'btn btn-primary', onclick: () => {
+        const blob = new Blob([text], { type: 'text/plain' });
+        const file = new File([blob], `puzzle-box-save-${new Date().toISOString().slice(0, 10)}.txt`, { type: 'text/plain' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: 'Puzzle Box save' }).catch(() => {});
+        else { const a = h('a', { href: URL.createObjectURL(blob), download: file.name }); document.body.append(a); a.click(); a.remove(); }
+        void close;
+      } }, 'Save as file'))));
+}
+function showImport() {
+  const ta = h('textarea', { class: 'save-text', placeholder: 'Paste your save text here' });
+  const fileIn = h('input', { type: 'file', accept: '.txt,text/plain', style: { display: 'none' } });
+  fileIn.addEventListener('change', async () => { const f = fileIn.files[0]; if (f) ta.value = await f.text(); });
+  const close = sheet('Import save', h('div', {},
+    h('p', { class: 'hint', style: { textAlign: 'left' } }, 'This replaces everything on this phone with the imported save. Your current data is backed up first, so you can undo from Backups.'),
+    ta, fileIn,
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn-soft', onclick: () => fileIn.click() }, 'Choose file'),
+      h('button', { class: 'btn btn-primary', onclick: () => {
+        try { importSave(ta.value); close(); toast('Save imported'); setTimeout(() => location.reload(), 600); }
+        catch (e) { toast(e.message || 'Could not import that save', 2600); }
+      } }, 'Import'))));
+}
+function showBackups() {
+  const list = listBackups();
+  const close = sheet('Backups', h('div', {},
+    h('p', { class: 'hint', style: { textAlign: 'left' } }, 'The last 7 backups are kept on this phone. Restoring backs up your current data first.'),
+    list.length ? h('div', { class: 'set-group' }, ...list.map((b) => h('div', { class: 'set-item' },
+      h('div', { class: 'lbl' }, new Date(b.t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+        h('small', {}, `${b.reason} · ${describeBackup(b.data)}`)),
+      h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: () => { restoreBackup(b.key); close(); toast('Backup restored'); setTimeout(() => location.reload(), 600); } }, 'Restore'))))
+      : h('p', { class: 'hint' }, 'No backups yet.'),
+    h('div', { class: 'row' }, h('button', { class: 'btn btn-soft', onclick: () => { backupNow('manual'); close(); toast('Backup made'); } }, 'Back up now'))));
+}
+
 // ---------- Boot ----------
+try { autoBackup(); } catch {}
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 route();

@@ -1,8 +1,13 @@
 import * as K from './keystone-engine.js';
-import { h, icon, iconBtn, store, sheet, toast, haptic, fmtTime } from './core.js';
+import { h, icon, iconBtn, store, sheet, toast, haptic, fmtTime, backupNow } from './core.js';
 
 // ---------- persistence ----------
-export function loadMeta() { return K.migrateMeta(store.get('ks:meta', {})); }
+export function loadMeta() {
+  const raw = store.get('ks:meta', {});
+  // safety net: copy everything before the save format is changed
+  if (raw && Object.keys(raw).length && raw.v !== K.VERSION) backupNow(`before Keystone update (save v${raw.v || 1})`);
+  return K.migrateMeta(raw);
+}
 const saveMeta = (m) => store.set('ks:meta', m);
 const loadRun = () => store.get('ks:run');
 const saveRun = (run) => store.set('ks:run', K.snapshot(run));
@@ -18,8 +23,14 @@ export function fmtNum(x) {
   if (Math.abs(x) >= 1000) return (x * Math.pow(1000, i)).toExponential(2).replace('+', '');
   return (x < 100 ? x.toFixed(x < 10 ? 2 : 1) : Math.floor(x)) + SUF[i];
 }
-function fmtStat(u, v) {
+function fmtStat(u, v, ctx) {
   switch (u.fmt) {
+    case 'dist': return `+${(v * 100).toFixed(1)}% per 100 range`;
+    case 'shots': return `${v} shot${v === 1 ? '' : 's'}`;
+    case 'freepct': return `${Math.round(v * 100)}% per wave`;
+    case 'levels': return `${v} level${v === 1 ? '' : 's'}`;
+    case 'interest': return `${(v * 100).toFixed(1)}% per wave`;
+    case 'thresh': return ctx && ctx.maxHp ? `${fmtNum(ctx.maxHp * v)} per hit` : `${(v * 100).toFixed(1)}% of health`;
     case 'rate': return v.toFixed(2) + '/s';
     case 'int': return String(Math.round(v));
     case 'pct': return Math.round(v * 100) + '%';
@@ -623,14 +634,15 @@ function mountRun(view, ui, asEvent = false) {
       const maxed = u.max != null && L >= u.max;
       lv.textContent = `Lv ${L}${u.max ? '/' + u.max : ''}`;
       if (maxed) {
-        val.textContent = fmtStat(u, u.val(L));
+        val.textContent = fmtStat(u, u.val(L), K.stats(run, meta));
         btn.replaceChildren('Max'); btn.disabled = true; btn.classList.add('off');
         continue;
       }
       const c = qty === 'max' ? K.affordable(run, meta, id) : K.runCost(run, meta, id, qty);
       const n = qty === 'max' ? Math.max(1, c.n) : c.n;
       const cost = qty === 'max' && c.n === 0 ? K.runCost(run, meta, id, 1).cost : c.cost;
-      val.textContent = `${fmtStat(u, u.val(L))} → ${fmtStat(u, u.val(L + n))}`;
+      const cx = u.id === 'thresh' ? K.stats(run, meta) : null;
+      val.textContent = `${fmtStat(u, u.val(L), cx)} → ${fmtStat(u, u.val(L + n), cx)}`;
       const can = cost <= run.coins && n > 0;
       btn.disabled = !can; btn.classList.toggle('off', !can);
       btn.replaceChildren(h('span', { class: 'ks-coin' }), fmtNum(cost), n > 1 ? h('small', {}, ` ×${n}`) : '');
@@ -690,6 +702,8 @@ function mountRun(view, ui, asEvent = false) {
   const muzzle = [];          // recent tower shots: { a, t }
   let hurtFlash = 0;
   let wallFlash = 0;
+  let lastInterest = 0;
+  let lastBlockFx = -1;
   let shake = 0;
   let clock = 0;
   const pendingEvents = [];
@@ -761,8 +775,20 @@ function mountRun(view, ui, asEvent = false) {
         ringFx(0, 0, '#ffd34d', K.R, 0.9, 5);
         haptic([20, 40, 20]);
         saveMeta(meta);
+      } else if (e.t === 'interest') { lastInterest = e.v; }
+      else if (e.t === 'freeup') {
+        const u = K.RUN_BY_ID[e.id];
+        banners.push({ text: 'Free upgrade!', sub: `${u.name} +${e.n}`, t: 0, gold: true });
+        ringFx(0, 0, '#ffd34d', K.TOWER_R + 26, 0.5, 4);
+        refreshList();
+      } else if (e.t === 'blocked') {
+        if (clock - lastBlockFx > 0.25) { lastBlockFx = clock; ringFx(0, 0, '#9fb8d6', K.TOWER_R + 12, 0.25, 3); }
       } else if (e.t === 'wave') {
-        banners.push({ text: `Wave ${e.wave}`, sub: e.bonus ? `+${fmtNum(e.bonus)} coins` : '', t: 0 });
+        const parts2 = [];
+        if (e.bonus) parts2.push(`+${fmtNum(e.bonus)} coins`);
+        if (lastInterest) parts2.push(`+${fmtNum(lastInterest)} interest`);
+        lastInterest = 0;
+        banners.push({ text: `Wave ${e.wave}`, sub: parts2.join(' · '), t: 0 });
         ringFx(0, 0, C.idle, K.R * 0.9, 0.8, 2);
         saveRun(run);
       } else if (e.t === 'over') { kick(8); sparks(0, 0, C.idle, 60, 260, 0.9); endRun(); }
@@ -1234,7 +1260,7 @@ function showRunStats(run) {
       h('span', {}, SRC_NAMES[k] || k), h('div', { class: 'ks-bar' }, h('i', { style: { width: `${(v / total) * 100}%` } })), h('b', {}, `${Math.round((v / total) * 100)}%`)))),
     h('div', { class: 'menu-cap' }, 'Defense'),
     h('div', { class: 'set-group' },
-      ...[['Damage taken (melee)', S.taken?.melee || 0], ['Damage taken (ranged)', S.taken?.ranged || 0], ['Blocked by wall', S.absorbed || 0], ['Healed by lifesteal', S.healed || 0]]
+      ...[['Damage taken (melee)', S.taken?.melee || 0], ['Damage taken (ranged)', S.taken?.ranged || 0], ['Blocked by wall', S.absorbed || 0], ['Stopped by damage threshold', S.threshold || 0], ['Healed by lifesteal', S.healed || 0], ['Interest earned (coins)', S.interest || 0], ['Free upgrade levels', S.free || 0]]
         .map(([k, v]) => h('div', { class: 'set-item' }, h('div', { class: 'lbl' }, k), h('b', {}, fmtNum(v))))),
     h('div', { class: 'menu-cap' }, 'Defeated'),
     h('div', { class: 'ks-tiers' }, ...kills.map(([t, n]) => h('div', {}, h('small', {}, (K.TYPES[t] || {}).name || t), h('b', {}, fmtNum(n))))),
