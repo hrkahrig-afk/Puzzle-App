@@ -59,41 +59,41 @@ export const waveCount = (w) => Math.min(42, Math.round(6 + 1.25 * w));
 const g104 = (L) => Math.pow(1.04, L);
 export const RUN_UPGRADES = [
   { id: 'dmg',    tab: 'attack',  name: 'Damage',       c0: 6,  g: 1.16, val: (L) => 5 * (1 + 0.3 * L) * g104(L), fmt: 'num' },
-  { id: 'rate',   tab: 'attack',  name: 'Attack speed', c0: 9,  g: 1.21, max: 40, val: (L) => 1 + 0.08 * L, fmt: 'rate' },
-  { id: 'range',  tab: 'attack',  name: 'Range',        c0: 14, g: 1.26, max: 20, val: (L) => 165 + 6 * L, fmt: 'int' },
-  { id: 'crit',   tab: 'attack',  name: 'Crit chance',  c0: 18, g: 1.24, max: 30, val: (L) => 0.02 * L, fmt: 'pct' },
-  { id: 'critx',  tab: 'attack',  name: 'Crit damage',  c0: 22, g: 1.22, max: 35, val: (L) => 1.5 + 0.1 * L, fmt: 'mult' },
-  { id: 'multi',  tab: 'attack',  name: 'Multishot',    c0: 45, g: 1.3,  max: 25, val: (L) => 0.03 * L, fmt: 'pct' },
-  { id: 'bounce', tab: 'attack',  name: 'Ricochet',     c0: 60, g: 1.6,  max: 4, tier: 2, val: (L) => L, fmt: 'bounce' },
-  { id: 'exec',   tab: 'attack',  name: 'Execute',      c0: 80, g: 1.45, max: 10, tier: 4, val: (L) => 0.01 * L, fmt: 'pct' },
-  { id: 'knock',  tab: 'attack',  name: 'Knockback',    c0: 30, g: 1.3,  max: 15, val: (L) => 0.04 * L, fmt: 'pct' },
-  { id: 'super',  tab: 'attack',  name: 'Super crit',   c0: 90, g: 1.35, max: 25, tier: 3, val: (L) => 0.02 * L, fmt: 'pct' },
-  { id: 'distm',  tab: 'attack',  name: 'Distance damage', c0: 40, g: 1.28, max: 30, val: (L) => 0.015 * L, fmt: 'dist' },
-  { id: 'mshots', tab: 'attack',  name: 'Multishot count', c0: 400, g: 2.2, max: 6, val: (L) => 1 + L, fmt: 'shots' },
-  { id: 'splash', tab: 'attack',  name: 'Splash damage',   c0: 60,  g: 1.32, max: 20, tier: 2, val: (L) => 0.025 * L, fmt: 'splash' },
-  { id: 'pierce', tab: 'attack',  name: 'Pierce',          c0: 200, g: 2.4,  max: 3,  tier: 3, val: (L) => L, fmt: 'pierce' },
-  { id: 'chill',  tab: 'attack',  name: 'Chill on hit',    c0: 60,  g: 1.3,  max: 20, tier: 4, val: (L) => 0.02 * L, fmt: 'pct' },
-  { id: 'burn',   tab: 'attack',  name: 'Burn',            c0: 80,  g: 1.32, max: 20, tier: 5, val: (L) => 0.03 * L, fmt: 'burn' },
-  { id: 'eliteb', tab: 'attack',  name: 'Elite & boss damage', c0: 70, g: 1.28, max: 30, tier: 6, val: (L) => 0.05 * L, fmt: 'plus' },
+  { id: 'rate',   tab: 'attack',  name: 'Attack speed', c0: 9,  g: 1.21, val: (L) => 1 + 0.08 * L, fmt: 'rate' },
+  { id: 'range',  tab: 'attack',  name: 'Range',        c0: 14, g: 1.26, max: 25, val: (L) => 165 + 6 * L, fmt: 'int' },
+  { id: 'crit',   tab: 'attack',  name: 'Crit chance',  c0: 18, g: 1.24, max: 45, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'critx',  tab: 'attack',  name: 'Crit damage',  c0: 22, g: 1.22, val: (L) => 1.5 + 0.1 * L, fmt: 'mult' },
+  { id: 'multi',  tab: 'attack',  name: 'Multishot',    c0: 45, g: 1.3,  max: 33, val: (L) => 0.03 * L, fmt: 'pct' },
+  { id: 'bounce', tab: 'attack',  name: 'Ricochet',     c0: 60, g: 1.6,  max: 6, tier: 2, val: (L) => L, fmt: 'bounce' },
+  { id: 'exec',   tab: 'attack',  name: 'Execute',      c0: 80, g: 1.45, max: 15, tier: 4, val: (L) => 0.01 * L, fmt: 'pct' },
+  { id: 'knock',  tab: 'attack',  name: 'Knockback',    c0: 30, g: 1.3,  max: 25, val: (L) => 0.04 * L, fmt: 'pct' },
+  { id: 'super',  tab: 'attack',  name: 'Super crit',   c0: 90, g: 1.35, max: 50, tier: 3, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'distm',  tab: 'attack',  name: 'Distance damage', c0: 40, g: 1.28, val: (L) => 0.015 * L, fmt: 'dist' },
+  { id: 'mshots', tab: 'attack',  name: 'Multishot count', c0: 400, g: 2.2, max: 10, val: (L) => 1 + L, fmt: 'shots' },
+  { id: 'splash', tab: 'attack',  name: 'Splash damage',   c0: 60,  g: 1.32, tier: 2, val: (L) => 0.025 * L, fmt: 'splash' },
+  { id: 'pierce', tab: 'attack',  name: 'Pierce',          c0: 200, g: 2.4,  max: 5,  tier: 3, val: (L) => L, fmt: 'pierce' },
+  { id: 'chill',  tab: 'attack',  name: 'Chill on hit',    c0: 60,  g: 1.3,  max: 25, tier: 4, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'burn',   tab: 'attack',  name: 'Burn',            c0: 80,  g: 1.32, tier: 5, val: (L) => 0.03 * L, fmt: 'burn' },
+  { id: 'eliteb', tab: 'attack',  name: 'Elite & boss damage', c0: 70, g: 1.28, tier: 6, val: (L) => 0.05 * L, fmt: 'plus' },
   { id: 'hp',     tab: 'defense', name: 'Max health',   c0: 6,  g: 1.16, val: (L) => 60 * (1 + 0.3 * L) * g104(L), fmt: 'num' },
   { id: 'regen',  tab: 'defense', name: 'Regeneration', c0: 8,  g: 1.18, val: (L) => (0.5 + 0.6 * L) * g104(L), fmt: 'regen' },
-  { id: 'armor',  tab: 'defense', name: 'Armor',        c0: 18, g: 1.23, max: 30, val: (L) => 0.015 * L, fmt: 'pct' },
-  { id: 'thorns', tab: 'defense', name: 'Thorns',       c0: 22, g: 1.22, max: 25, val: (L) => 0.02 * L, fmt: 'pct' },
-  { id: 'wall',   tab: 'defense', name: 'Wall',         c0: 25, g: 1.25, max: 20, val: (L) => 0.1 * L, fmt: 'wallpct' },
-  { id: 'leech',  tab: 'defense', name: 'Lifesteal',    c0: 40, g: 1.3,  max: 20, tier: 2, val: (L) => 0.005 * L, fmt: 'pctx' },
-  { id: 'waveheal', tab: 'defense', name: 'Heal on wave clear', c0: 40, g: 1.3, max: 15, val: (L) => 0.01 * L, fmt: 'healpct' },
-  { id: 'dodge',  tab: 'defense', name: 'Dodge',           c0: 55,  g: 1.32, max: 15, tier: 2, val: (L) => 0.01 * L, fmt: 'pct' },
-  { id: 'reflect', tab: 'defense', name: 'Ranged reflection', c0: 50, g: 1.28, max: 20, tier: 3, val: (L) => 0.02 * L, fmt: 'reflect' },
-  { id: 'aura',   tab: 'defense', name: 'Slowing aura',    c0: 70,  g: 1.32, max: 15, tier: 4, val: (L) => 0.02 * L, fmt: 'aura' },
-  { id: 'drones', tab: 'defense', name: 'Shield drones',   c0: 300, g: 2.5,  max: 3,  tier: 6, val: (L) => L, fmt: 'drones' },
-  { id: 'thresh', tab: 'defense', name: 'Damage threshold', c0: 35, g: 1.3, max: 25, val: (L) => 0.0016 * L, fmt: 'thresh' },
-  { id: 'salvage', tab: 'defense', name: 'Salvage',     c0: 70, g: 1.5,  max: 10, tier: 6, val: (L) => 0.003 * L, fmt: 'pctx' },
+  { id: 'armor',  tab: 'defense', name: 'Armor',        c0: 18, g: 1.23, max: 40, val: (L) => 0.015 * L, fmt: 'pct' },
+  { id: 'thorns', tab: 'defense', name: 'Thorns',       c0: 22, g: 1.22, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'wall',   tab: 'defense', name: 'Wall',         c0: 25, g: 1.25, val: (L) => 0.1 * L, fmt: 'wallpct' },
+  { id: 'leech',  tab: 'defense', name: 'Lifesteal',    c0: 40, g: 1.3,  tier: 2, val: (L) => 0.005 * L, fmt: 'pctx' },
+  { id: 'waveheal', tab: 'defense', name: 'Heal on wave clear', c0: 40, g: 1.3, val: (L) => 0.01 * L, fmt: 'healpct' },
+  { id: 'dodge',  tab: 'defense', name: 'Dodge',           c0: 55,  g: 1.32, max: 25, tier: 2, val: (L) => 0.01 * L, fmt: 'pct' },
+  { id: 'reflect', tab: 'defense', name: 'Ranged reflection', c0: 50, g: 1.28, tier: 3, val: (L) => 0.02 * L, fmt: 'reflect' },
+  { id: 'aura',   tab: 'defense', name: 'Slowing aura',    c0: 70,  g: 1.32, max: 20, tier: 4, val: (L) => 0.02 * L, fmt: 'aura' },
+  { id: 'drones', tab: 'defense', name: 'Shield drones',   c0: 300, g: 2.5,  max: 6,  tier: 6, val: (L) => L, fmt: 'drones' },
+  { id: 'thresh', tab: 'defense', name: 'Damage threshold', c0: 35, g: 1.3, val: (L) => 0.0016 * L, fmt: 'thresh' },
+  { id: 'salvage', tab: 'defense', name: 'Salvage',     c0: 70, g: 1.5,  tier: 6, val: (L) => 0.003 * L, fmt: 'pctx' },
   { id: 'coins',  tab: 'economy', name: 'Coin bonus',   c0: 25, g: 1.24, val: (L) => 0.1 * L, fmt: 'plus' },
   { id: 'wavec',  tab: 'economy', name: 'Wave bonus',   c0: 35, g: 1.28, val: (L) => 4 * L, fmt: 'wave' },
-  { id: 'bounty', tab: 'economy', name: 'Bounty',          c0: 40,  g: 1.27, max: 30, tier: 2, val: (L) => 0.1 * L, fmt: 'bounty' },
-  { id: 'overkill', tab: 'economy', name: 'Overkill coins', c0: 50, g: 1.28, max: 20, tier: 3, val: (L) => 0.05 * L, fmt: 'overkill' },
-  { id: 'streak', tab: 'economy', name: 'Kill streak bonus', c0: 55, g: 1.28, max: 20, tier: 4, val: (L) => 0.002 * L, fmt: 'streak' },
-  { id: 'interest', tab: 'economy', name: 'Interest',   c0: 50, g: 1.3, max: 20, val: (L) => 0.005 * L, fmt: 'interest' },
+  { id: 'bounty', tab: 'economy', name: 'Bounty',          c0: 40,  g: 1.27, tier: 2, val: (L) => 0.1 * L, fmt: 'bounty' },
+  { id: 'overkill', tab: 'economy', name: 'Overkill coins', c0: 50, g: 1.28, tier: 3, val: (L) => 0.05 * L, fmt: 'overkill' },
+  { id: 'streak', tab: 'economy', name: 'Kill streak bonus', c0: 55, g: 1.28, tier: 4, val: (L) => 0.002 * L, fmt: 'streak' },
+  { id: 'interest', tab: 'economy', name: 'Interest',   c0: 50, g: 1.3, val: (L) => 0.005 * L, fmt: 'interest' },
   { id: 'freea',  tab: 'economy', name: 'Free attack upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
   { id: 'freean', tab: 'economy', name: 'Free attack amount',  c0: 300, g: 2, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
   { id: 'freed',  tab: 'economy', name: 'Free defense upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
@@ -109,13 +109,13 @@ export const runUpgradesFor = (tier) => RUN_UPGRADES.filter((u) => (u.tier || 1)
 export const PERM_UPGRADES = [
   { id: 'pdmg',   name: 'Sharpened core',   desc: '×1.08 damage',             c0: 8,  g: 1.15, val: (L) => Math.pow(1.08, L) },
   { id: 'php',    name: 'Reinforced walls', desc: '×1.08 health and regen',   c0: 8,  g: 1.15, val: (L) => Math.pow(1.08, L) },
-  { id: 'prate',  name: 'Quick loader',     desc: '+2% attack speed',         c0: 12, g: 1.22, max: 50, val: (L) => 1 + 0.02 * L },
+  { id: 'prate',  name: 'Quick loader',     desc: '+2% attack speed',         c0: 12, g: 1.22, val: (L) => 1 + 0.02 * L },
   { id: 'pcoin',  name: 'Prospector',       desc: '×1.06 coins',              c0: 10, g: 1.16, val: (L) => Math.pow(1.06, L) },
   { id: 'pstart', name: 'War chest',        desc: 'More starting coins',      c0: 6,  g: 1.2,  val: (L) => 20 * L * Math.pow(1.12, L) },
   { id: 'pdisc',  name: 'Bargaining',       desc: '−2% upgrade costs',        c0: 20, g: 1.35, max: 15, val: (L) => 1 - 0.02 * L },
   { id: 'pcrit',  name: 'Keen eye',         desc: '+1% crit chance',          c0: 15, g: 1.3,  max: 20, val: (L) => 0.01 * L },
   { id: 'pshard', name: 'Shard lens',       desc: '×1.05 shards',             c0: 25, g: 1.2,  val: (L) => Math.pow(1.05, L) },
-  { id: 'poffl',  name: 'Night watch',      desc: '+25% offline shards',      c0: 15, g: 1.3,  max: 20, val: (L) => 1 + 0.25 * L },
+  { id: 'poffl',  name: 'Night watch',      desc: '+25% offline shards',      c0: 15, g: 1.3,  val: (L) => 1 + 0.25 * L },
   { id: 'phead',  name: 'Head start',       desc: '+1 starting level in each of your chosen stats', c0: 150, g: 1.45, max: 25, tier: 3, val: (L) => L },
   { id: 'plast',  name: 'Last stand',       desc: 'Once per run, survive a fatal blow (+10% health per level)', c0: 250, g: 2.4, max: 5, val: (L) => (L ? 0.2 + 0.1 * L : 0) },
 ];
@@ -294,7 +294,7 @@ function gearCritAdd(meta) {
 // priorities are bought from the start).
 export const SCHEMATICS = [
   { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2, distm: 2, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 1, interest: 2, freee: 1, freeen: 1, splash: 2, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 2, reflect: 1, aura: 1, drones: 1, bounty: 1, overkill: 1, streak: 1 } },
-  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 1, crit: 3, critx: 3, multi: 1, bounce: 1, exec: 1, knock: 1, super: 1, hp: 3, regen: 2, armor: 2, thorns: 0, wall: 2, leech: 1, salvage: 0, coins: 1, wavec: 1, distm: 1, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 0, freedn: 0, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 1, reflect: 0, aura: 0, drones: 0, bounty: 0, overkill: 0, streak: 0 } },
+  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 1, crit: 3, critx: 3, multi: 1, bounce: 1, exec: 1, knock: 1, super: 1, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 0, coins: 1, wavec: 1, distm: 1, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 0, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 2, reflect: 0, aura: 0, drones: 0, bounty: 0, overkill: 0, streak: 0 } },
   { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 0, chill: 2, burn: 0, eliteb: 0, waveheal: 4, dodge: 4, reflect: 3, aura: 3, drones: 3, bounty: 0, overkill: 0, streak: 0 } },
   { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy first, with just enough to survive', w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 0, exec: 0, knock: 0, super: 0, hp: 3, regen: 2, armor: 1, thorns: 0, wall: 1, leech: 0, salvage: 0, coins: 4, wavec: 4, distm: 0, mshots: 0, thresh: 1, interest: 3, freea: 1, freean: 1, freed: 1, freedn: 1, freee: 2, freeen: 1, splash: 0, pierce: 0, chill: 0, burn: 0, eliteb: 0, waveheal: 1, dodge: 0, reflect: 0, aura: 0, drones: 0, bounty: 4, overkill: 3, streak: 3 } },
 ];
@@ -306,9 +306,27 @@ export const schematicWeights = (meta) => {
 export function autoBuy(run, meta, maxBuys = 6) {
   const w = schematicWeights(meta);
   let bought = 0;
+  // survival floor: keep at least a quarter of spending on core attack and core
+  // defense (if the schematic weights them at all), so no build collapses early
+  const floorPick = () => {
+    const sp = run.stats.spent || {};
+    const tot = Object.values(sp).reduce((x, y) => x + y, 0);
+    if (tot < 1) return null;
+    for (const group of [['dmg', 'rate'], ['hp', 'regen']]) {
+      const ids = group.filter((id) => (w[id] || 0) > 0 && runCost(run, meta, id, 1).n);
+      if (!ids.length) continue;
+      const got = group.reduce((x, id) => x + (sp[id] || 0), 0);
+      if (got < 0.25 * tot) {
+        let pick = null;
+        for (const id of ids) { const c = runCost(run, meta, id, 1).cost; if (!pick || c < pick[2]) pick = [id, 0, c]; }
+        return pick;
+      }
+    }
+    return null;
+  };
   for (let k = 0; k < maxBuys; k++) {
-    let best = null;
-    for (const u of runUpgradesFor(run.tier)) {
+    let best = floorPick();
+    for (const u of best ? [] : runUpgradesFor(run.tier)) {
       const wt = w[u.id] || 0;
       if (!wt) continue;
       const c = runCost(run, meta, u.id, 1);
@@ -1140,7 +1158,8 @@ export function step(run, meta, dt, rand = Math.random) {
     if (bonus) { run.coins += bonus; run.coinsEarned += bonus; }
     // interest on unspent coins (capped so hoarding can't run away)
     if (s.interest > 0 && run.coins > 0) {
-      const cap = 25 * enemyCoins(run.wave, run.tier) * s.coinMult;
+      // per-wave payout limit grows with the upgrade, so Interest keeps scaling
+      const cap = (15 + 2 * lvl(run.levels, 'interest')) * enemyCoins(run.wave, run.tier) * s.coinMult;
       const intr = Math.min(cap, run.coins * s.interest);
       run.coins += intr; run.coinsEarned += intr;
       run.stats.interest = (run.stats.interest || 0) + intr;
