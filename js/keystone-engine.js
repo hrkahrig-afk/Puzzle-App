@@ -60,32 +60,32 @@ const g104 = (L) => Math.pow(1.04, L);
 export const RUN_UPGRADES = [
   { id: 'dmg',    tab: 'attack',  name: 'Damage',       c0: 6,  g: 1.16, val: (L) => 5 * (1 + 0.3 * L) * g104(L), fmt: 'num' },
   { id: 'rate',   tab: 'attack',  name: 'Attack speed', c0: 9,  g: 1.21, val: (L) => 1 + 0.08 * L, fmt: 'rate' },
-  { id: 'range',  tab: 'attack',  name: 'Range',        c0: 14, g: 1.26, max: 25, val: (L) => 165 + 6 * L, fmt: 'int' },
-  { id: 'crit',   tab: 'attack',  name: 'Crit chance',  c0: 18, g: 1.24, max: 45, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'range',  tab: 'attack',  name: 'Range',        c0: 14, g: 1.16, max: 50, val: (L) => 165 + 3 * L, fmt: 'int' },
+  { id: 'crit',   tab: 'attack',  name: 'Crit chance',  c0: 18, g: 1.1, max: 90, val: (L) => 0.01 * L, fmt: 'pct' },
   { id: 'critx',  tab: 'attack',  name: 'Crit damage',  c0: 22, g: 1.22, val: (L) => 1.5 + 0.1 * L, fmt: 'mult' },
-  { id: 'multi',  tab: 'attack',  name: 'Multishot',    c0: 26, g: 1.1,  max: 50, val: (L) => 0.01 * L, fmt: 'pct' },
-  { id: 'bounce', tab: 'attack',  name: 'Ricochet',     c0: 60, g: 1.6,  max: 6, tier: 2, val: (L) => L, fmt: 'bounce' },
-  { id: 'exec',   tab: 'attack',  name: 'Execute',      c0: 80, g: 1.45, max: 15, tier: 4, val: (L) => 0.01 * L, fmt: 'pct' },
-  { id: 'knock',  tab: 'attack',  name: 'Knockback',    c0: 30, g: 1.3,  max: 25, val: (L) => 0.04 * L, fmt: 'pct' },
-  { id: 'super',  tab: 'attack',  name: 'Super crit',   c0: 90, g: 1.35, max: 50, tier: 3, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'multi',  tab: 'attack',  name: 'Multishot',    c0: 26, g: 1.15,  max: 50, val: (L) => 0.01 * L, fmt: 'pct' },
+  { id: 'bounce', tab: 'attack',  name: 'Ricochet',     c0: 100, g: 3.5,  max: 6, tier: 2, val: (L) => L, fmt: 'bounce' },
+  { id: 'exec',   tab: 'attack',  name: 'Execute',      c0: 80, g: 1.22, max: 30, tier: 4, val: (L) => 0.005 * L, fmt: 'pct' },
+  { id: 'knock',  tab: 'attack',  name: 'Knockback',    c0: 30, g: 1.11,  max: 75, val: (L) => 0.01 * L, fmt: 'pct' },
+  { id: 'super',  tab: 'attack',  name: 'Super crit',   c0: 90, g: 1.09, max: 100, tier: 3, val: (L) => 0.01 * L, fmt: 'pct' },
   { id: 'distm',  tab: 'attack',  name: 'Distance damage', c0: 40, g: 1.28, val: (L) => 0.015 * L, fmt: 'dist' },
-  { id: 'mshots', tab: 'attack',  name: 'Multishot count', c0: 400, g: 2.2, max: 10, val: (L) => 1 + L, fmt: 'shots' },
+  { id: 'mshots', tab: 'attack',  name: 'Multishot count', c0: 400, g: 2.6, max: 10, val: (L) => 1 + L, fmt: 'shots' },
   { id: 'splash', tab: 'attack',  name: 'Splash damage',   c0: 60,  g: 1.32, tier: 2, val: (L) => 0.025 * L, fmt: 'splash' },
-  { id: 'pierce', tab: 'attack',  name: 'Pierce',          c0: 200, g: 2.4,  max: 5,  tier: 3, val: (L) => L, fmt: 'pierce' },
-  { id: 'chill',  tab: 'attack',  name: 'Chill on hit',    c0: 60,  g: 1.3,  max: 25, tier: 4, val: (L) => 0.02 * L, fmt: 'pct' },
+  { id: 'pierce', tab: 'attack',  name: 'Pierce',          c0: 600, g: 3.5,  max: 5,  tier: 3, val: (L) => L, fmt: 'pierce' },
+  { id: 'chill',  tab: 'attack',  name: 'Chill on hit',    c0: 60,  g: 1.12,  max: 50, tier: 4, val: (L) => 0.01 * L, fmt: 'pct' },
   { id: 'burn',   tab: 'attack',  name: 'Burn',            c0: 80,  g: 1.32, tier: 5, val: (L) => 0.03 * L, fmt: 'burn' },
   { id: 'eliteb', tab: 'attack',  name: 'Elite & boss damage', c0: 70, g: 1.28, tier: 6, val: (L) => 0.05 * L, fmt: 'plus' },
   { id: 'hp',     tab: 'defense', name: 'Max health',   c0: 6,  g: 1.16, val: (L) => 60 * (1 + 0.3 * L) * g104(L), fmt: 'num' },
   { id: 'regen',  tab: 'defense', name: 'Regeneration', c0: 8,  g: 1.18, val: (L) => (0.5 + 0.6 * L) * g104(L), fmt: 'regen' },
-  { id: 'armor',  tab: 'defense', name: 'Armor',        c0: 18, g: 1.23, max: 40, val: (L) => 0.015 * L, fmt: 'pct' },
+  { id: 'armor',  tab: 'defense', name: 'Armor',        c0: 18, g: 1.12, max: 60, val: (L) => 0.01 * L, fmt: 'pct' },
   { id: 'thorns', tab: 'defense', name: 'Thorns',       c0: 22, g: 1.22, val: (L) => 0.02 * L, fmt: 'pct' },
   { id: 'wall',   tab: 'defense', name: 'Wall',         c0: 25, g: 1.25, val: (L) => 0.1 * L, fmt: 'wallpct' },
   { id: 'leech',  tab: 'defense', name: 'Lifesteal',    c0: 40, g: 1.3,  tier: 2, val: (L) => 0.005 * L, fmt: 'pctx' },
   { id: 'waveheal', tab: 'defense', name: 'Heal on wave clear', c0: 40, g: 1.3, val: (L) => 0.01 * L, fmt: 'healpct' },
-  { id: 'dodge',  tab: 'defense', name: 'Dodge',           c0: 55,  g: 1.32, max: 25, tier: 2, val: (L) => 0.01 * L, fmt: 'pct' },
+  { id: 'dodge',  tab: 'defense', name: 'Dodge',           c0: 55,  g: 1.12, max: 50, tier: 2, val: (L) => 0.005 * L, fmt: 'pct' },
   { id: 'reflect', tab: 'defense', name: 'Ranged reflection', c0: 50, g: 1.28, tier: 3, val: (L) => 0.02 * L, fmt: 'reflect' },
-  { id: 'aura',   tab: 'defense', name: 'Slowing aura',    c0: 70,  g: 1.32, max: 20, tier: 4, val: (L) => 0.02 * L, fmt: 'aura' },
-  { id: 'drones', tab: 'defense', name: 'Shield drones',   c0: 300, g: 2.5,  max: 6,  tier: 6, val: (L) => L, fmt: 'drones' },
+  { id: 'aura',   tab: 'defense', name: 'Slowing aura',    c0: 70,  g: 1.15, max: 40, tier: 4, val: (L) => 0.01 * L, fmt: 'aura' },
+  { id: 'drones', tab: 'defense', name: 'Shield drones',   c0: 300, g: 3,  max: 6,  tier: 6, val: (L) => L, fmt: 'drones' },
   { id: 'thresh', tab: 'defense', name: 'Damage threshold', c0: 35, g: 1.3, val: (L) => 0.0016 * L, fmt: 'thresh' },
   { id: 'salvage', tab: 'defense', name: 'Salvage',     c0: 70, g: 1.5,  tier: 6, val: (L) => 0.003 * L, fmt: 'pctx' },
   { id: 'coins',  tab: 'economy', name: 'Coin bonus',   c0: 25, g: 1.24, val: (L) => 0.1 * L, fmt: 'plus' },
@@ -94,12 +94,12 @@ export const RUN_UPGRADES = [
   { id: 'overkill', tab: 'economy', name: 'Overkill coins', c0: 50, g: 1.28, tier: 3, val: (L) => 0.05 * L, fmt: 'overkill' },
   { id: 'streak', tab: 'economy', name: 'Kill streak bonus', c0: 55, g: 1.28, tier: 4, val: (L) => 0.002 * L, fmt: 'streak' },
   { id: 'interest', tab: 'economy', name: 'Interest',   c0: 50, g: 1.3, val: (L) => 0.005 * L, fmt: 'interest' },
-  { id: 'freea',  tab: 'economy', name: 'Free attack upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
-  { id: 'freean', tab: 'economy', name: 'Free attack amount',  c0: 300, g: 2, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
-  { id: 'freed',  tab: 'economy', name: 'Free defense upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
-  { id: 'freedn', tab: 'economy', name: 'Free defense amount',  c0: 300, g: 2, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
-  { id: 'freee',  tab: 'economy', name: 'Free economy upgrade', c0: 60, g: 1.3, max: 25, val: (L) => 0.015 * L, fmt: 'freepct', free: true },
-  { id: 'freeen', tab: 'economy', name: 'Free economy amount',  c0: 300, g: 2, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
+  { id: 'freea',  tab: 'economy', name: 'Free attack upgrade', c0: 60, g: 1.1, max: 76, val: (L) => 0.005 * L, fmt: 'freepct', free: true },
+  { id: 'freean', tab: 'economy', name: 'Free attack amount',  c0: 500, g: 5, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
+  { id: 'freed',  tab: 'economy', name: 'Free defense upgrade', c0: 60, g: 1.1, max: 76, val: (L) => 0.005 * L, fmt: 'freepct', free: true },
+  { id: 'freedn', tab: 'economy', name: 'Free defense amount',  c0: 500, g: 5, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
+  { id: 'freee',  tab: 'economy', name: 'Free economy upgrade', c0: 60, g: 1.1, max: 76, val: (L) => 0.005 * L, fmt: 'freepct', free: true },
+  { id: 'freeen', tab: 'economy', name: 'Free economy amount',  c0: 500, g: 5, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
 ];
 export const RUN_BY_ID = Object.fromEntries(RUN_UPGRADES.map((u) => [u.id, u]));
 export const runUpgradesFor = (tier) => RUN_UPGRADES.filter((u) => (u.tier || 1) <= tier);
@@ -112,12 +112,12 @@ export const PERM_UPGRADES = [
   { id: 'prate',  name: 'Quick loader',     desc: '+2% attack speed',         c0: 12, g: 1.22, val: (L) => 1 + 0.02 * L },
   { id: 'pcoin',  name: 'Prospector',       desc: '×1.06 coins',              c0: 10, g: 1.16, val: (L) => Math.pow(1.06, L) },
   { id: 'pstart', name: 'War chest',        desc: 'More starting coins',      c0: 6,  g: 1.2,  val: (L) => 20 * L * Math.pow(1.12, L) },
-  { id: 'pdisc',  name: 'Bargaining',       desc: '−2% upgrade costs',        c0: 20, g: 1.35, max: 15, val: (L) => 1 - 0.02 * L },
-  { id: 'pcrit',  name: 'Keen eye',         desc: '+1% crit chance',          c0: 15, g: 1.3,  max: 20, val: (L) => 0.01 * L },
+  { id: 'pdisc',  name: 'Bargaining',       desc: '−1% upgrade costs',        c0: 20, g: 1.25, max: 30, val: (L) => 1 - 0.01 * L },
+  { id: 'pcrit',  name: 'Keen eye',         desc: '+0.5% crit chance',          c0: 15, g: 1.2,  max: 40, val: (L) => 0.005 * L },
   { id: 'pshard', name: 'Shard lens',       desc: '×1.05 shards',             c0: 25, g: 1.2,  val: (L) => Math.pow(1.05, L) },
   { id: 'poffl',  name: 'Night watch',      desc: '+25% offline shards',      c0: 15, g: 1.3,  val: (L) => 1 + 0.25 * L },
   { id: 'phead',  name: 'Head start',       desc: '+1 starting level in each of your chosen stats', c0: 150, g: 1.45, max: 25, tier: 3, val: (L) => L },
-  { id: 'plast',  name: 'Last stand',       desc: 'Once per run, survive a fatal blow (+10% health per level)', c0: 250, g: 2.4, max: 5, val: (L) => (L ? 0.2 + 0.1 * L : 0) },
+  { id: 'plast',  name: 'Last stand',       desc: 'Once per run, survive a fatal blow (+10% health per level)', c0: 250, g: 3, max: 5, val: (L) => (L ? 0.2 + 0.1 * L : 0) },
 ];
 export const PERM_BY_ID = Object.fromEntries(PERM_UPGRADES.map((u) => [u.id, u]));
 
@@ -128,11 +128,11 @@ export const RESEARCH = [
   { id: 'rhp',    name: 'Masonry',        desc: '×1.12 health and regen',    c0: 25,  g: 1.28, t0: 600,  tg: 1.42, val: (L) => Math.pow(1.12, L) },
   { id: 'rcoin',  name: 'Minting',        desc: '×1.1 coins',                c0: 30,  g: 1.28, t0: 900,  tg: 1.42, val: (L) => Math.pow(1.1, L) },
   { id: 'rshard', name: 'Crystallurgy',   desc: '×1.08 shards',              c0: 40,  g: 1.3,  t0: 1200, tg: 1.43, val: (L) => Math.pow(1.08, L) },
-  { id: 'rspeed', name: 'Lab efficiency', desc: '+6% research speed',        c0: 60,  g: 1.4,  t0: 1800, tg: 1.4, max: 25, val: (L) => 1 + 0.06 * L },
-  { id: 'roffl',  name: 'Long watch',     desc: '+2 h offline limit',        c0: 50,  g: 1.45, t0: 3600, tg: 1.45, max: 12, val: (L) => 2 * L },
-  { id: 'rcd',    name: 'Capacitors',     desc: '−3% ability cooldowns',     c0: 80,  g: 1.4,  t0: 2400, tg: 1.4, max: 15, tier: 2, val: (L) => 1 - 0.03 * L },
+  { id: 'rspeed', name: 'Lab efficiency', desc: '+3% research speed',        c0: 60,  g: 1.2,  t0: 1800, tg: 1.2, max: 50, val: (L) => 1 + 0.03 * L },
+  { id: 'roffl',  name: 'Long watch',     desc: '+1 h offline limit',        c0: 50,  g: 1.22, t0: 3600, tg: 1.22, max: 24, val: (L) => 1 * L },
+  { id: 'rcd',    name: 'Capacitors',     desc: '−1.5% ability cooldowns',     c0: 80,  g: 1.2,  t0: 2400, tg: 1.2, max: 30, tier: 2, val: (L) => 1 - 0.015 * L },
   { id: 'rboss',  name: 'Siegecraft',     desc: '×1.15 damage to Wardens',   c0: 100, g: 1.35, t0: 3600, tg: 1.35, tier: 3, val: (L) => Math.pow(1.15, L) },
-  { id: 'rrelic', name: 'Archaeology',    desc: '+10% relic drop chance',    c0: 150, g: 1.4,  t0: 5400, tg: 1.4, max: 20, tier: 4, val: (L) => 1 + 0.1 * L },
+  { id: 'rrelic', name: 'Archaeology',    desc: '+5% relic drop chance',    c0: 150, g: 1.2,  t0: 5400, tg: 1.2, max: 40, tier: 4, val: (L) => 1 + 0.05 * L },
 ];
 export const RESEARCH_BY_ID = Object.fromEntries(RESEARCH.map((u) => [u.id, u]));
 export const MAX_RESEARCH_SECONDS = 7 * 86400;
@@ -672,6 +672,21 @@ export function newMeta() {
   };
 }
 
+// Steps for some capped upgrades were halved (twice the levels for the same max).
+// Existing levels are doubled once so nothing owned loses value.
+const HALVED_PERM = ['pdisc', 'pcrit'];
+export const HALVED_RESEARCH = ['rspeed', 'roffl', 'rcd', 'rrelic'];
+function convertCaps(m) {
+  if (m.capsV >= 2) return m;
+  m.perm = { ...(m.perm || {}) };
+  m.research = { ...(m.research || {}) };
+  for (const id of HALVED_PERM) if (m.perm[id]) m.perm[id] *= 2;
+  for (const id of HALVED_RESEARCH) if (m.research[id]) m.research[id] *= 2;
+  m.capsV = 2;
+  m.capsAt = Date.now(); // research already running for these finishes as 2 levels
+  return m;
+}
+
 // Convert a version-1 save: refund shards spent in the old workshop, keep abilities.
 const OLD_PERM = { pdmg: [8, 1.32], php: [8, 1.32], prate: [12, 1.4], pcoin: [10, 1.35], pstart: [6, 1.3], pdisc: [20, 1.45], pcrit: [15, 1.4], pshard: [25, 1.45], poffl: [15, 1.4] };
 export function migrateMeta(m) {
@@ -679,7 +694,7 @@ export function migrateMeta(m) {
   if (!m || !Object.keys(m).length) return base;
   // Any save with a version number (2, 3 or newer) is kept exactly as it is;
   // missing fields are filled in, nothing is ever removed or rebuilt.
-  if (typeof m.v === 'number' && m.v >= 2) return { ...base, ...m, v: Math.max(m.v, VERSION), records: { runs: m.runs || 0, ...(m.records || {}) } };
+  if (typeof m.v === 'number' && m.v >= 2) return convertCaps({ ...base, ...m, v: Math.max(m.v, VERSION), records: { runs: m.runs || 0, ...(m.records || {}) } });
   // Only a genuine first-version save (no version field at all) reaches the refund below.
   if (m.v != null || m.lab || m.research || m.maxTier || m.gear) return { ...base, ...m, v: VERSION };
   let refund = 0;
@@ -770,7 +785,8 @@ export function collectResearch(meta, now = Date.now()) {
     let first = null;
     for (const j of lab) if (j.end <= now && (!first || j.end < first.end)) first = j;
     if (!first) break;
-    meta.research[first.id] = lvl(meta.research, first.id) + 1;
+    const inc = HALVED_RESEARCH.includes(first.id) && meta.capsAt && first.start < meta.capsAt ? 2 : 1;
+    meta.research[first.id] = lvl(meta.research, first.id) + inc;
     done.push(first.id);
     meta.lab = lab.filter((j) => j !== first);
     startFromQueue(meta, first.end);
