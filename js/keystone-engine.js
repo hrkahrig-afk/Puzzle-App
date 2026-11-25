@@ -289,13 +289,14 @@ function gearCritAdd(meta) {
 
 // ---------- Schematics (auto-buy build priorities) ----------
 // Weights 0–4 per in-run upgrade. Auto-buy shares coins out in proportion to the
-// weights: it tracks the coins each upgrade has received this run and buys the one
-// furthest behind its share (so prices don't skew the build).
+// weights: it tracks the coins each upgrade has received this run and
+// buys the one furthest behind its share (weights count to the power 1.5, so top
+// priorities are bought from the start).
 export const SCHEMATICS = [
   { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2, distm: 2, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 1, interest: 2, freee: 1, freeen: 1, splash: 2, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 2, reflect: 1, aura: 1, drones: 1, bounty: 1, overkill: 1, streak: 1 } },
-  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 2, crit: 3, critx: 3, multi: 3, bounce: 3, exec: 2, knock: 1, super: 3, hp: 2, regen: 1, armor: 1, thorns: 0, wall: 1, leech: 2, salvage: 0, coins: 1, wavec: 1, distm: 3, mshots: 2, freea: 2, freean: 1, thresh: 1, freed: 0, freedn: 0, interest: 1, freee: 0, freeen: 0, splash: 3, pierce: 3, chill: 1, burn: 2, eliteb: 2, waveheal: 1, dodge: 1, reflect: 0, aura: 0, drones: 0, bounty: 0, overkill: 0, streak: 0 } },
-  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 2, rate: 1, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 0, chill: 2, burn: 0, eliteb: 0, waveheal: 4, dodge: 4, reflect: 3, aura: 3, drones: 3, bounty: 0, overkill: 0, streak: 0 } },
-  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy first, with just enough to survive', w: { dmg: 2, rate: 1, range: 0, crit: 0, critx: 0, multi: 0, bounce: 0, exec: 0, knock: 0, super: 0, hp: 2, regen: 1, armor: 0, thorns: 0, wall: 0, leech: 0, salvage: 0, coins: 4, wavec: 4, distm: 0, mshots: 0, thresh: 0, interest: 4, freea: 2, freean: 1, freed: 2, freedn: 1, freee: 3, freeen: 2, splash: 0, pierce: 0, chill: 0, burn: 0, eliteb: 0, waveheal: 1, dodge: 0, reflect: 0, aura: 0, drones: 0, bounty: 4, overkill: 3, streak: 3 } },
+  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 1, crit: 3, critx: 3, multi: 1, bounce: 1, exec: 1, knock: 1, super: 1, hp: 3, regen: 2, armor: 2, thorns: 0, wall: 2, leech: 1, salvage: 0, coins: 1, wavec: 1, distm: 1, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 0, freedn: 0, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 1, reflect: 0, aura: 0, drones: 0, bounty: 0, overkill: 0, streak: 0 } },
+  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 0, chill: 2, burn: 0, eliteb: 0, waveheal: 4, dodge: 4, reflect: 3, aura: 3, drones: 3, bounty: 0, overkill: 0, streak: 0 } },
+  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy first, with just enough to survive', w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 0, exec: 0, knock: 0, super: 0, hp: 3, regen: 2, armor: 1, thorns: 0, wall: 1, leech: 0, salvage: 0, coins: 4, wavec: 4, distm: 0, mshots: 0, thresh: 1, interest: 3, freea: 1, freean: 1, freed: 1, freedn: 1, freee: 2, freeen: 1, splash: 0, pierce: 0, chill: 0, burn: 0, eliteb: 0, waveheal: 1, dodge: 0, reflect: 0, aura: 0, drones: 0, bounty: 4, overkill: 3, streak: 3 } },
 ];
 export const schematicWeights = (meta) => {
   if (meta.schematic === 'custom') return meta.customSchematic || SCHEMATICS[0].w;
@@ -313,7 +314,8 @@ export function autoBuy(run, meta, maxBuys = 6) {
       const c = runCost(run, meta, u.id, 1);
       if (!c.n) continue;
       const spent = ((run.stats.spent || {})[u.id] || 0);
-      const score = (spent + c.cost) / wt;
+      // weight counts to the power 1.5: a priority-4 stat gets ~8× the coins of a priority-1 stat
+      const score = (spent + c.cost) / Math.pow(wt, 1.5);
       if (!best || score < best[1]) best = [u.id, score, c.cost];
     }
     if (!best || best[2] > run.coins) break;
