@@ -46,7 +46,7 @@ function claimAll() {
   const M = K.refreshMissions(meta, now);
   for (const list of ['daily', 'weekly']) M[list].forEach((m, i) => { if (m.prog >= m.n && !m.claimed) K.claimMission(meta, list, i, rand); });
   for (const list of ['daily', 'weekly']) K.claimSweep(meta, list);
-  for (const m of K.MILESTONES) K.claimMilestone(meta, m.id, rand);
+  for (let k = 0; k < 20; k++) { const ready = K.milestonesFor(meta, 3).filter((m) => K.milestoneValue(meta, m.key) >= m.n); if (!ready.length) break; for (const m of ready) K.claimMilestone(meta, m.id, rand); }
 }
 function spend() {
   if (!OLD) { claimAll(); equipGear(); }

@@ -417,13 +417,45 @@ const MISSION_POOL = [
 ];
 const MISSION_BY_ID = Object.fromEntries(MISSION_POOL.map((m) => [m.id, m]));
 const WEEKLY_TIMES = 3; // weekly "run" missions need the condition met this many times
-export const MILESTONES = [
-  ...[100, 1000, 10000, 100000, 1000000].map((n, i) => ({ id: `m_k${i}`, key: 'kills', n, text: `Defeat ${n.toLocaleString('en-US')} enemies`, gear: i >= 2 ? 1 : 0 })),
-  ...[1, 10, 50, 250, 1000].map((n, i) => ({ id: `m_w${i}`, key: 'wardens', n, text: `Defeat ${n} Warden${n > 1 ? 's' : ''}`, gear: i >= 1 ? 1 : 0 })),
-  ...[2, 3, 5, 8, 12, 16, 20, 25, 30, 40].map((n, i) => ({ id: `m_t${i}`, key: 'maxTier', n, text: `Unlock tier ${n}`, gear: n >= 5 ? 2 : 1 })),
-  ...[10, 50, 200, 1000].map((n, i) => ({ id: `m_r${i}`, key: 'runs', n, text: `Finish ${n} runs`, gear: i >= 2 ? 1 : 0 })),
-  ...[10, 50, 150, 400].map((n, i) => ({ id: `m_l${i}`, key: 'researchLv', n, text: `Reach ${n} total research levels`, gear: i >= 1 ? 1 : 0 })),
-];
+// ---------- Career milestones (endless) ----------
+// Each series goes on forever with bigger targets; every step pays more than the
+// last (and rewards also scale with your progress). Claimed steps are stored by
+// "key:target" so nothing can be claimed twice.
+const fmtN = (n) => n.toLocaleString('en-US');
+const SERIES = {
+  kills:      { text: (n) => `Defeat ${fmtN(n)} enemies`, n: (k) => { const b = [1, 3]; return 100 * Math.pow(10, Math.floor(k / 2)) * b[k % 2]; } },
+  wardens:    { text: (n) => `Defeat ${fmtN(n)} Warden${n > 1 ? 's' : ''}`, n: (k) => { const s = [1, 5, 10, 25, 50]; return k < s.length ? s[k] : [100, 250, 500][(k - 5) % 3] * Math.pow(10, Math.floor((k - 5) / 3)); } },
+  maxTier:    { text: (n) => `Unlock tier ${n}`, n: (k) => k + 2 },
+  runs:       { text: (n) => `Finish ${fmtN(n)} runs`, n: (k) => { const s = [10, 25, 50, 100, 200]; return k < s.length ? s[k] : [500, 1000, 2000][(k - 5) % 3] * Math.pow(10, Math.floor((k - 5) / 3)); } },
+  researchLv: { text: (n) => `Reach ${fmtN(n)} total research levels`, n: (k) => { const s = [10, 25, 50, 100, 150, 200, 300, 400]; return k < s.length ? s[k] : 400 + 100 * (k - 7); } },
+  relicLv:    { text: (n) => `Reach ${n} total relic levels`, n: (k) => { const s = [5, 10, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240]; return k < s.length ? s[k] : Infinity; } },
+};
+// Old fixed milestones (claimed before this change) map onto the new series.
+const OLD_MILESTONES = { m_k: ['kills', [100, 1000, 10000, 100000, 1000000]], m_w: ['wardens', [1, 10, 50, 250, 1000]], m_t: ['maxTier', [2, 3, 5, 8, 12, 16, 20, 25, 30, 40]], m_r: ['runs', [10, 50, 200, 1000]], m_l: ['researchLv', [10, 50, 150, 400]] };
+function migrateMilestones(M) {
+  for (const id of Object.keys(M.done || {})) {
+    const m = /^(m_[kwtrl])(\d+)$/.exec(id);
+    if (m && OLD_MILESTONES[m[1]]) { const [key, ns] = OLD_MILESTONES[m[1]]; M.done[`${key}:${ns[+m[2]]}`] = true; delete M.done[id]; }
+  }
+}
+// The next unclaimed steps in each series (by default the first `per` of each).
+export function milestonesFor(meta, per = 2) {
+  const M = refreshMissions(meta);
+  const out = [];
+  for (const [key, S] of Object.entries(SERIES)) {
+    let found = 0;
+    for (let k = 0; k < 200 && found < per; k++) {
+      const n = S.n(k);
+      if (!isFinite(n)) break;
+      const id = `${key}:${n}`;
+      if (M.done[id]) continue;
+      out.push({ id, key, n, step: k, text: S.text(n), gear: k >= 2 && k % 3 === 2 ? Math.min(4, 1 + Math.floor(k / 6)) : 0 });
+      found++;
+    }
+  }
+  return out;
+}
+export const MILESTONES = []; // kept for older code paths; use milestonesFor()
 function dayKeyOf(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function weekKeyOf(d) { const m = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)); return 'W' + dayKeyOf(m); }
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
@@ -468,6 +500,7 @@ export function refreshMissions(meta, now = nowMs()) {
   if (M.day !== day) { M.day = day; M.daily = makeMissions(meta, hash(day), false); M.dailyBonus = false; }
   if (M.week !== week) { M.week = week; M.weekly = makeMissions(meta, hash(week + 'w'), true); M.weeklyBonus = false; }
   M.done = M.done || {};
+  if (!M.msV) { migrateMilestones(M); M.msV = 2; }
   return M;
 }
 export function missionText(m) {
@@ -502,7 +535,8 @@ function checkRunMissions(run, meta) {
     try { if (d.ok(run, m)) m.prog = Math.min(m.n, m.prog + 1); } catch {}
   }
 }
-export const milestoneReward = (meta, m) => Math.round(rewardScale(meta) * 0.5 * (1 + (m.gear || 0)));
+// each step in a series pays more than the one before (+40% of a run per step)
+export const milestoneReward = (meta, m) => Math.max(10, Math.round(rewardScale(meta) * (0.6 + 0.4 * (m.step || 0))));
 // Count progress toward missions and lifetime totals.
 export function track(meta, key, amount = 1, now = nowMs()) {
   const M = refreshMissions(meta, now);
@@ -513,6 +547,7 @@ export function track(meta, key, amount = 1, now = nowMs()) {
 export function milestoneValue(meta, key) {
   if (key === 'maxTier') return meta.maxTier || 1;
   if (key === 'researchLv') return Object.values(meta.research || {}).reduce((a, b) => a + b, 0);
+  if (key === 'relicLv') return RELICS.reduce((a, r) => a + relicLv(meta, r.id), 0);
   return (meta.records || {})[key] || 0;
 }
 export function claimMission(meta, list, idx, rand = Math.random) {
@@ -525,21 +560,21 @@ export function claimMission(meta, list, idx, rand = Math.random) {
   return got;
 }
 export function claimMilestone(meta, id, rand = Math.random) {
-  const m = MILESTONES.find((x) => x.id === id);
+  const m = milestonesFor(meta, 200).find((x) => x.id === id);
   const M = refreshMissions(meta);
   if (!m || M.done[id] || milestoneValue(meta, m.key) < m.n) return null;
   M.done[id] = true;
   const shards = milestoneReward(meta, m);
   meta.shards += shards;
   let gear = null;
-  if (m.gear) { const g = rollGear(meta.maxTier || 1, rand); g.rarity = Math.max(g.rarity, Math.min(2, m.gear)); addGear(meta, g.id, g.rarity); gear = g; }
+  if (m.gear) { const g = rollGear(meta.maxTier || 1, rand); g.rarity = Math.max(g.rarity, Math.min(4, m.gear)); addGear(meta, g.id, g.rarity); gear = g; }
   return { shards, gear };
 }
 export const unclaimedCount = (meta) => {
   const M = refreshMissions(meta);
   let n = [...M.daily, ...M.weekly].filter((m) => !m.claimed && m.prog >= m.n).length;
   for (const k of ['daily', 'weekly']) if (!M[k + 'Bonus'] && M[k].every((m) => m.claimed)) n++;
-  n += MILESTONES.filter((m) => !M.done[m.id] && milestoneValue(meta, m.key) >= m.n).length;
+  n += milestonesFor(meta, 3).filter((m) => milestoneValue(meta, m.key) >= m.n).length;
   return n;
 };
 

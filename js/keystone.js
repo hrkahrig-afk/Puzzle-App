@@ -381,7 +381,8 @@ function mountLobby(view, ui) {
       }, 'Bonus'));
       return rows;
     };
-    const ms = K.MILESTONES.filter((m) => !M.done[m.id]).slice(0, 8);
+    // show the next step of each series (and a second step if the first is already reachable)
+    const ms = K.milestonesFor(meta, 2).filter((m, i, arr) => arr.findIndex((x) => x.key === m.key) === i || K.milestoneValue(meta, arr.find((x) => x.key === m.key).key) >= arr.find((x) => x.key === m.key).n);
     return h('div', {},
       h('p', { class: 'hint', style: { textAlign: 'left', margin: '0 4px 4px' } }, 'Each set mixes five play styles. Stick to one habit and you’ll leave shards behind; clear the whole set for a bonus.'),
       h('div', { class: 'menu-cap' }, `Daily · resets in ${fmtDur((midnight - now) / 1000)}`), h('div', { class: 'set-group' }, ...list('daily')),
@@ -389,12 +390,12 @@ function mountLobby(view, ui) {
       h('div', { class: 'menu-cap' }, 'Milestones'),
       h('div', { class: 'set-group' }, ...ms.map((m) => {
         const v = K.milestoneValue(meta, m.key);
-        return row(m.text + (m.gear ? ' · + gear' : ''), v, m.n, v >= m.n, false, K.milestoneReward(meta, m), () => {
+        return row(m.text + (m.gear ? ` · + ${K.RARITIES[m.gear]} gear` : ''), v, m.n, v >= m.n, false, K.milestoneReward(meta, m), () => {
           const res = K.claimMilestone(meta, m.id);
           if (res) { toast(`+${fmtNum(res.shards)} shards${res.gear ? ` · ${K.RARITIES[res.gear.rarity]} ${K.GEAR_BY_ID[res.gear.id].name}` : ''}`, 2600); haptic(15); save(); }
         });
       })),
-      h('p', { class: 'hint' }, `${Object.keys(M.done).length} of ${K.MILESTONES.length} milestones complete`));
+      h('p', { class: 'hint' }, `${Object.keys(M.done).length} milestones complete · every series keeps going, and each step pays more`));
   }
 
   // ----- Build: schematics, auto-buy, perks -----
