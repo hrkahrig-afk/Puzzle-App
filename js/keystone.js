@@ -433,7 +433,11 @@ function mountLobby(view, ui) {
           save();
         } }, u.name))));
     }
-    return h('div', {}, h('div', { class: 'menu-cap' }, 'Schematic'), group, h('div', { class: 'menu-cap' }, 'Head start'), head, h('div', { class: 'menu-cap' }, 'Automation'), toggles, editor);
+    const focus = K.schematicFocus(meta);
+    const focusNote = h('p', { class: 'hint', style: { textAlign: 'left', margin: '6px 4px 0' } }, focus
+      ? `Opening focus: for the first ${K.FOCUS_WAVES} waves of a run, Auto-buy spends only on ${focus[0].toUpperCase() + focus.slice(1)} upgrades.`
+      : `Balanced has no opening focus. (Assault, Fortress and Tycoon spend their first ${K.FOCUS_WAVES} waves only on their own upgrade type; Custom does too when one type clearly has the most weight.)`);
+    return h('div', {}, h('div', { class: 'menu-cap' }, 'Schematic'), group, focusNote, h('div', { class: 'menu-cap' }, 'Head start'), head, h('div', { class: 'menu-cap' }, 'Automation'), toggles, editor);
   }
 
   // ----- Monthly event -----

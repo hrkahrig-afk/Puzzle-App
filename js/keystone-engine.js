@@ -302,6 +302,20 @@ export const schematicWeights = (meta) => {
   if (meta.schematic === 'custom') return meta.customSchematic || SCHEMATICS[0].w;
   return (SCHEMATICS.find((x) => x.id === meta.schematic) || SCHEMATICS[0]).w;
 };
+// Opening focus: for the first FOCUS_WAVES waves a focused schematic buys only its
+// own tab (Assault → attack, Fortress → defense, Tycoon → economy).
+export let FOCUS_WAVES = 6;
+export function setFocusWaves(n) { FOCUS_WAVES = n; }
+const FOCUS = { assault: 'attack', fortress: 'defense', tycoon: 'economy', balanced: null };
+export function schematicFocus(meta) {
+  if (meta.schematic !== 'custom') return FOCUS[meta.schematic] ?? null;
+  // custom: the tab with clearly the most weight (by squared weights), if any
+  const w = schematicWeights(meta);
+  const tot = { attack: 0, defense: 0, economy: 0 };
+  for (const u of RUN_UPGRADES) tot[u.tab] += Math.pow(w[u.id] || 0, 2);
+  const [a, b] = Object.entries(tot).sort((x, y) => y[1] - x[1]);
+  return a[1] > 0 && a[1] >= 1.5 * b[1] ? a[0] : null;
+}
 // Spend coins according to the active schematic. Returns number of levels bought.
 export function autoBuy(run, meta, maxBuys = 6) {
   const w = schematicWeights(meta);
@@ -324,9 +338,11 @@ export function autoBuy(run, meta, maxBuys = 6) {
     }
     return null;
   };
+  const focus = run.wave <= FOCUS_WAVES ? schematicFocus(meta) : null;
   for (let k = 0; k < maxBuys; k++) {
-    let best = floorPick();
+    let best = focus ? null : floorPick();
     for (const u of best ? [] : runUpgradesFor(run.tier)) {
+      if (focus && u.tab !== focus) continue;
       const wt = w[u.id] || 0;
       if (!wt) continue;
       const c = runCost(run, meta, u.id, 1);
