@@ -210,8 +210,14 @@ function snapshotAll() {
   try { for (const k of Object.keys(localStorage)) if (k.startsWith(P)) data[k] = localStorage.getItem(k); } catch {}
   return data;
 }
+// true if any real game data exists (not just settings or the version marker)
+export function hasProgress(data = snapshotAll()) {
+  return Object.keys(data).some((k) => k !== P + 'appVersion' && k !== P + 'settings');
+}
 export function backupNow(reason = 'manual') {
   try {
+    // never let an empty snapshot push a good backup out of the list
+    if (!hasProgress()) return false;
     const t = Date.now();
     localStorage.setItem(BAK + t, JSON.stringify({ t, reason, data: snapshotAll() }));
     const keys = listBackups().map((b) => b.key);
@@ -264,4 +270,26 @@ export function describeBackup(data) {
     if (m) return `Keystone tier ${m.maxTier || 1} · ${Math.floor(m.shards || 0).toLocaleString()} shards · ${m.runs || 0} runs`;
   } catch {}
   return `${Object.keys(data).length} saved items`;
+}
+
+// ---------- Native app: automatic backup file ----------
+// In the Android app (Capacitor), the save is also written to
+// Documents/PuzzleBox/puzzle-box-save.txt, which survives even if app data is cleared.
+export const isNativeApp = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+let lastFileWrite = 0;
+export async function writeBackupFile(force = false) {
+  if (!isNativeApp() || !hasProgress()) return false;
+  if (!force && Date.now() - lastFileWrite < 5 * 60 * 1000) return false;
+  const FS = window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+  if (!FS) return false;
+  try {
+    await FS.writeFile({ path: 'PuzzleBox/puzzle-box-save.txt', data: exportSave(), directory: 'DOCUMENTS', encoding: 'utf8', recursive: true });
+    lastFileWrite = Date.now();
+    return true;
+  } catch (e) { console.warn('backup file', e); return false; }
+}
+export async function readBackupFile() {
+  const FS = isNativeApp() && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+  if (!FS) return null;
+  try { const r = await FS.readFile({ path: 'PuzzleBox/puzzle-box-save.txt', directory: 'DOCUMENTS', encoding: 'utf8' }); return r.data; } catch { return null; }
 }

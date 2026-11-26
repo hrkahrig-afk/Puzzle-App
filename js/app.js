@@ -1,6 +1,6 @@
 import {
   h, icon, iconBtn, store, getSettings, setSetting, applyTheme, todayKey, sheet, closeAllSheets,
-  getStreak, toast, backupNow, listBackups, autoBackup, restoreBackup, exportSave, importSave, describeBackup,
+  getStreak, toast, backupNow, hasProgress, isNativeApp, writeBackupFile, readBackupFile, listBackups, autoBackup, restoreBackup, exportSave, importSave, describeBackup,
 } from './core.js';
 
 const view = document.getElementById('view');
@@ -236,6 +236,7 @@ function renderSettings() {
       item('Export save', 'Copy your whole save as text to keep somewhere safe', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: () => showExport() }, 'Export')),
       item('Import save', 'Paste a saved text to restore it', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: showImport }, 'Import')),
       item('Backups on this phone', 'Made automatically each day and before updates', h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: showBackups }, 'View')),
+      storageItem(),
     ),
     h('div', { class: 'section-label' }, 'Danger zone'),
     h('div', { class: 'set-group' },
@@ -262,13 +263,45 @@ function confirmReset() {
 
 // Bump with every release: the first launch after an update backs up the save on
 // the phone and asks the player to export a copy somewhere safe.
-const APP_VERSION = '2026.11.25-10';
+const APP_VERSION = '2026.11.26-1';
 function checkUpdate() {
   const prev = store.get('appVersion', null);
   if (prev === APP_VERSION) return;
-  backupNow(prev ? `before update ${APP_VERSION}` : 'first launch of this version');
   store.set('appVersion', APP_VERSION);
+  // No saved data at all: either a first launch, or the phone cleared the app's
+  // storage. Never offer to export an empty save; offer to import instead.
+  if (!hasProgress()) { setTimeout(showNoData, 700); return; }
+  backupNow(`before update ${APP_VERSION}`);
+  writeBackupFile(true);
   setTimeout(() => showExport(true), 700);
+}
+async function showNoData() {
+  const fileSave = await readBackupFile();
+  const close = sheet('No saved progress found', h('div', {},
+    h('p', { style: { textAlign: 'left' } }, 'If this is your first time here, welcome! If you’ve played before, your phone may have cleared this app’s data. You can bring your progress back from an exported save.'),
+    fileSave ? h('p', { class: 'hint', style: { textAlign: 'left' } }, 'A backup file from this app was found on your phone.') : null,
+    h('div', { class: 'menu-list' },
+      fileSave ? h('button', { class: 'btn btn-primary', onclick: () => { try { importSave(fileSave); close(); toast('Progress restored'); setTimeout(() => location.reload(), 600); } catch (e) { toast(e.message, 2600); } } }, 'Restore from backup file') : null,
+      h('button', { class: fileSave ? 'btn btn-soft' : 'btn btn-primary', onclick: () => { close(); showImport(); } }, 'Import a saved text or file'),
+      h('button', { class: 'btn btn-outline', onclick: () => close() }, 'Start fresh'))));
+}
+
+function storageItem() {
+  const status = h('small', {}, 'Checking…');
+  const btn = h('button', { class: 'btn btn-outline', style: { flex: 'none' }, onclick: async () => {
+    try { const ok = await navigator.storage.persist(); toast(ok ? 'Storage protected' : 'Your phone declined — see the note', 2600); } catch {}
+    refresh();
+  } }, 'Protect');
+  async function refresh() {
+    if (isNativeApp()) { status.textContent = 'Running as an installed app: data is kept in the app’s own storage, plus a backup file in Documents/PuzzleBox.'; btn.remove(); return; }
+    try {
+      const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false;
+      status.textContent = p ? 'Protected: the phone won’t clear this data to free space.' : 'Not protected: the phone may clear this data if you don’t play for a while. Tap Protect; if it’s declined, use the Android app or export regularly.';
+      if (p) btn.remove();
+    } catch { status.textContent = 'Unknown on this browser. Export your save regularly.'; }
+  }
+  refresh();
+  return h('div', { class: 'set-item' }, h('div', { class: 'lbl' }, 'Storage protection', status), btn);
 }
 
 function showExport(afterUpdate = false) {
@@ -319,6 +352,9 @@ function showBackups() {
 
 // ---------- Boot ----------
 try { autoBackup(); checkUpdate(); } catch {}
+// in the Android app, keep a backup file up to date
+setInterval(() => writeBackupFile(), 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) writeBackupFile(true); });
 // Ask the phone to keep this app's data permanently (not cleared when storage runs low).
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then((p) => p || navigator.storage.persist()); } catch {}
 applyTheme();
