@@ -298,8 +298,16 @@ export const SCHEMATICS = [
   { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 0, chill: 2, burn: 0, eliteb: 0, waveheal: 4, dodge: 4, reflect: 3, aura: 3, drones: 3, bounty: 0, overkill: 0, streak: 0 } },
   { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy first, with just enough to survive', w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 0, exec: 0, knock: 0, super: 0, hp: 3, regen: 2, armor: 1, thorns: 0, wall: 1, leech: 0, salvage: 0, coins: 4, wavec: 4, distm: 0, mshots: 0, thresh: 1, interest: 3, freea: 1, freean: 1, freed: 1, freedn: 1, freee: 2, freeen: 1, splash: 0, pierce: 0, chill: 0, burn: 0, eliteb: 0, waveheal: 1, dodge: 0, reflect: 0, aura: 0, drones: 0, bounty: 4, overkill: 3, streak: 3 } },
 ];
+// Custom schematics use a 0–10 scale (10 = the presets' top priority of 4).
+export const CUSTOM_MAX = 10;
+const CUSTOM_PER_PRESET = 2.5;
+export function customFromPreset(w) { const o = {}; for (const [k, v] of Object.entries(w)) o[k] = Math.round(v * CUSTOM_PER_PRESET); return o; }
 export const schematicWeights = (meta) => {
-  if (meta.schematic === 'custom') return meta.customSchematic || SCHEMATICS[0].w;
+  if (meta.schematic === 'custom') {
+    const c = meta.customSchematic || customFromPreset(SCHEMATICS[0].w);
+    const o = {}; for (const [k, v] of Object.entries(c)) o[k] = v / CUSTOM_PER_PRESET;
+    return o;
+  }
   return (SCHEMATICS.find((x) => x.id === meta.schematic) || SCHEMATICS[0]).w;
 };
 // Opening focus: for the first FOCUS_WAVES waves a focused schematic buys only its
@@ -729,6 +737,12 @@ export function newMeta() {
 // Existing levels are doubled once so nothing owned loses value.
 const HALVED_PERM = ['pdisc', 'pcrit'];
 export const HALVED_RESEARCH = ['rspeed', 'roffl', 'rcd', 'rrelic'];
+function convertCustomScale(m) {
+  if (m.customScale === CUSTOM_MAX) return m;
+  if (m.customSchematic) m.customSchematic = customFromPreset(m.customSchematic);
+  m.customScale = CUSTOM_MAX;
+  return m;
+}
 function convertCaps(m) {
   if (m.capsV >= 2) return m;
   m.perm = { ...(m.perm || {}) };
@@ -747,7 +761,7 @@ export function migrateMeta(m) {
   if (!m || !Object.keys(m).length) return base;
   // Any save with a version number (2, 3 or newer) is kept exactly as it is;
   // missing fields are filled in, nothing is ever removed or rebuilt.
-  if (typeof m.v === 'number' && m.v >= 2) return convertCaps({ ...base, ...m, v: Math.max(m.v, VERSION), records: { runs: m.runs || 0, ...(m.records || {}) } });
+  if (typeof m.v === 'number' && m.v >= 2) return convertCustomScale(convertCaps({ ...base, ...m, v: Math.max(m.v, VERSION), records: { runs: m.runs || 0, ...(m.records || {}) } }));
   // Only a genuine first-version save (no version field at all) reaches the refund below.
   if (m.v != null || m.lab || m.research || m.maxTier || m.gear) return { ...base, ...m, v: VERSION };
   let refund = 0;

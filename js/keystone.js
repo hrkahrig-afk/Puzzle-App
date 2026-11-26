@@ -400,7 +400,7 @@ function mountLobby(view, ui) {
 
   // ----- Build: schematics, auto-buy, perks -----
   function drawBuild() {
-    const choose = (id) => { meta.schematic = id; if (id === 'custom' && !meta.customSchematic) meta.customSchematic = { ...K.SCHEMATICS[0].w }; save(); };
+    const choose = (id) => { meta.schematic = id; if (id === 'custom' && !meta.customSchematic) { meta.customSchematic = K.customFromPreset(K.SCHEMATICS[0].w); meta.customScale = K.CUSTOM_MAX; } save(); };
     const opts = [...K.SCHEMATICS, { id: 'custom', name: 'Custom', desc: 'Set your own priorities below' }];
     const group = h('div', { class: 'set-group' }, ...opts.map((x) => h('button', { class: 'set-item ks-choice' + (meta.schematic === x.id ? ' on' : ''), onclick: () => choose(x.id) },
       h('span', { class: 'ks-radio' }), h('div', { class: 'lbl', style: { textAlign: 'left' } }, x.name, h('small', {}, x.desc)))));
@@ -409,15 +409,23 @@ function mountLobby(view, ui) {
       h('div', { class: 'set-item' }, h('div', { class: 'lbl' }, 'Pick perks for me', h('small', {}, 'Choose perks automatically to suit your schematic')), toggleEl(meta.autoPerk !== false, (v) => { meta.autoPerk = v; save(false); })));
     let editor = null;
     if (meta.schematic === 'custom') {
-      const w = meta.customSchematic || (meta.customSchematic = { ...K.SCHEMATICS[0].w });
-      editor = h('div', {}, h('div', { class: 'menu-cap' }, 'Custom priorities (0 = never buy)'),
-        h('div', { class: 'set-group' }, ...K.RUN_UPGRADES.map((u) => {
-          const out = h('output', {}, String(w[u.id] || 0));
-          const set = (d) => { w[u.id] = Math.max(0, Math.min(4, (w[u.id] || 0) + d)); out.textContent = String(w[u.id]); saveMeta(meta); };
-          return h('div', { class: 'set-item' + ((u.tier || 1) > meta.maxTier ? ' dim' : '') },
-            h('div', { class: 'lbl' }, u.name, (u.tier || 1) > meta.maxTier ? h('small', {}, `Unlocks at tier ${u.tier}`) : null),
-            h('div', { class: 'mini-step' }, h('button', { onclick: () => set(-1), 'aria-label': 'Lower' }, '−'), out, h('button', { onclick: () => set(1), 'aria-label': 'Higher' }, '+')));
-        })));
+      const w = meta.customSchematic || (meta.customSchematic = K.customFromPreset(K.SCHEMATICS[0].w));
+      meta.customScale = K.CUSTOM_MAX;
+      const tabs = [['attack', 'Attack'], ['defense', 'Defense'], ['economy', 'Economy']];
+      editor = h('div', {}, h('div', { class: 'menu-cap' }, `Custom priorities · 0 = never buy, ${K.CUSTOM_MAX} = top priority`),
+        h('div', { class: 'row', style: { margin: '0 0 10px' } },
+          ...K.SCHEMATICS.map((x) => h('button', { class: 'btn btn-soft', style: { padding: '8px 6px', fontSize: '13px' }, onclick: () => { meta.customSchematic = K.customFromPreset(x.w); save(); toast(`Copied ${x.name} — adjust from here`); } }, `From ${x.name}`))),
+        ...tabs.map(([tab, label]) => h('div', {}, h('div', { class: 'menu-cap' }, label),
+          h('div', { class: 'set-group' }, ...K.RUN_UPGRADES.filter((u) => u.tab === tab).map((u) => {
+            const out = h('output', { class: 'ks-wout' }, String(w[u.id] || 0));
+            const slider = h('input', { type: 'range', min: 0, max: K.CUSTOM_MAX, step: 1, class: 'ks-slider' });
+            slider.value = String(w[u.id] || 0);
+            slider.addEventListener('input', () => { w[u.id] = +slider.value; out.textContent = slider.value; });
+            slider.addEventListener('change', () => saveMeta(meta));
+            return h('div', { class: 'set-item ks-wrow' + ((u.tier || 1) > meta.maxTier ? ' dim' : '') },
+              h('div', { class: 'lbl' }, u.name, (u.tier || 1) > meta.maxTier ? h('small', {}, `Unlocks at tier ${u.tier}`) : null),
+              slider, out);
+          })))));
     }
     let head;
     if (!K.permUnlocked(meta, 'phead')) head = h('p', { class: 'hint' }, 'Head start unlocks at tier 3: start every run with free levels in stats you choose.');
