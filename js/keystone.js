@@ -456,7 +456,7 @@ function mountLobby(view, ui) {
         h('div', { class: 'ks-tokens' }, h('span', { class: 'ks-token' }), h('b', {}, fmtNum(E.tokens)), h('small', {}, ` tokens · ${fmtNum(E.earned)} earned`)),
         run ? h('button', { class: 'btn btn-soft', style: { flex: 'none' }, onclick: () => ui.go('#/keystone/run') }, run.event ? 'Resume event run' : 'Finish current run first')
           : h('button', { class: 'btn btn-primary', style: { '--c': th.color, color: '#111', flex: 'none' }, onclick: () => ui.go('#/keystone/run/event') }, icon('play'), `Event run · T${meta.tier}`)),
-      h('p', { class: 'hint', style: { textAlign: 'left', margin: '8px 0 0' } }, 'Event runs earn tokens (more for higher waves and Wardens) but don’t count toward tier unlocks or best waves. Tokens reset when the month ends.'));
+      h('p', { class: 'hint', style: { textAlign: 'left', margin: '8px 0 0' } }, `Event runs earn tokens (more for higher waves and Wardens, and +25% per tier above 1: tier ${meta.tier} gives ×${K.eventTierBonus(meta.tier)}) but don’t count toward tier unlocks or best waves. Tokens reset when the month ends.`));
 
     // challenges
     const ch = h('div', { class: 'set-group' }, ...K.EVENT_CHALLENGES.map((c) => {

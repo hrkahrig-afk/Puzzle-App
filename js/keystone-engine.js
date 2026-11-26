@@ -659,7 +659,9 @@ export function claimEventStep(meta, cid, step) {
   E.tokens += c.tokens[step]; E.earned += c.tokens[step];
   return c.tokens[step];
 }
-export const eventTokensForRun = (run) => Math.floor(run.wave / 4) + 3 * run.bossKills + 2;
+// higher tiers pay more tokens: +25% per tier above 1
+export const eventTierBonus = (tier) => 1 + 0.25 * ((tier || 1) - 1);
+export const eventTokensForRun = (run) => Math.round((Math.floor(run.wave / 4) + 3 * run.bossKills + 2) * eventTierBonus(run.tier));
 export function eventClaimable(meta) {
   const E = refreshEvent(meta);
   let n = 0;
