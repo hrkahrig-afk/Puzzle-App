@@ -1,0 +1,13 @@
+{
+  "appId": "io.github.hrkahrigafk.puzzlebox",
+  "appName": "Puzzle Box",
+  "webDir": "www",
+  "server": {
+    "url": "https://hrkahrig-afk.github.io/Puzzle-App/",
+    "errorPath": "offline.html",
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#111318"
+  }
+}

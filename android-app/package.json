@@ -1,0 +1,18 @@
+{
+  "name": "puzzle-box-android",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Android wrapper for Puzzle Box (loads the live site; saves stay in app storage)",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.3",
+    "@capacitor/core": "8.6.3",
+    "@capacitor/filesystem": "8.1.5"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.6.3"
+  }
+}
