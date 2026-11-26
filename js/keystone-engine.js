@@ -478,8 +478,8 @@ export function missionText(m) {
 }
 export const missionCat = (m) => MISSION_CATS[m.cat] || '';
 // each mission pays a little; clearing a whole set pays a bonus on top
-export const missionReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 0.36 : 0.09));
-export const sweepReward = (meta, kind) => Math.round(rewardScale(meta) * (kind === 'weekly' ? 2 : 0.5));
+export const missionReward = (meta, kind) => Math.max(kind === 'weekly' ? 30 : 8, Math.round(rewardScale(meta) * (kind === 'weekly' ? 1 : 0.25)));
+export const sweepReward = (meta, kind) => Math.max(kind === 'weekly' ? 90 : 25, Math.round(rewardScale(meta) * (kind === 'weekly' ? 3 : 1)));
 export function sweepStatus(meta, kind) {
   const M = refreshMissions(meta);
   const list = M[kind];
