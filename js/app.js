@@ -263,7 +263,7 @@ function confirmReset() {
 
 // Bump with every release: the first launch after an update backs up the save on
 // the phone and asks the player to export a copy somewhere safe.
-const APP_VERSION = '2026.11.26-6';
+const APP_VERSION = '2026.11.27-1';
 function checkUpdate() {
   const prev = store.get('appVersion', null);
   if (prev === APP_VERSION) return;

@@ -60,6 +60,8 @@ function fmtStat(u, v, ctx) {
     case 'wave': return fmtNum(v) + '×wave';
     case 'bounce': return v + (v === 1 ? ' bounce' : ' bounces');
     case 'wallpct': return Math.round(v * 100) + '% of health';
+    case 'abpow': return `+${Math.round(v * 100)}% power`;
+    case 'abcd': return `−${(v * 100).toFixed(1)}% cooldowns`;
     default: return fmtNum(v);
   }
 }
@@ -297,7 +299,9 @@ function mountLobby(view, ui) {
         return h('div', { class: 'set-item' + (unlocked ? '' : ' dim') },
           h('div', { class: 'ks-ab-ico' + (owned ? ' on' : '') }, abIcon(a.id)),
           h('div', { class: 'lbl' }, a.name, h('small', {}, `${a.desc} · ${Math.round(K.abilityCd(meta, a))}s cooldown`)),
-          owned ? h('span', { class: 'ks-owned' }, 'Ready')
+          owned ? h('div', { class: 'ks-abpow' },
+              h('small', {}, `Power Lv ${K.abilityPowerLv(meta, a.id)} · +${Math.round(K.abilityPowerLv(meta, a.id) * K.ABILITY_POWER_PER * 100)}%`),
+              costBtn(K.abilityPowerCost(meta, a.id), () => { if (K.buyAbilityPower(meta, a.id)) { haptic(10); save(); } }))
             : !unlocked ? h('span', { class: 'ks-owned muted' }, `Tier ${a.tier}`)
             : costBtn(a.cost, () => { meta.shards -= a.cost; meta.abilities[a.id] = true; haptic(15); save(); }));
       }),
@@ -411,7 +415,7 @@ function mountLobby(view, ui) {
     if (meta.schematic === 'custom') {
       const w = meta.customSchematic || (meta.customSchematic = K.customFromPreset(K.SCHEMATICS[0].w));
       meta.customScale = K.CUSTOM_MAX;
-      const tabs = [['attack', 'Attack'], ['defense', 'Defense'], ['economy', 'Economy']];
+      const tabs = [['attack', 'Attack'], ['defense', 'Defense'], ['economy', 'Economy'], ['ability', 'Abilities']];
       editor = h('div', {}, h('div', { class: 'menu-cap' }, `Custom priorities · 0 = never buy, ${K.CUSTOM_MAX} = top priority`),
         h('div', { class: 'row', style: { margin: '0 0 10px' } },
           ...K.SCHEMATICS.map((x) => h('button', { class: 'btn btn-soft', style: { padding: '8px 6px', fontSize: '13px' }, onclick: () => { meta.customSchematic = K.customFromPreset(x.w); save(); toast(`Copied ${x.name} — adjust from here`); } }, `From ${x.name}`))),
@@ -692,9 +696,11 @@ function mountRun(view, ui, asEvent = false) {
   const qtySeg = h('div', { class: 'seg' });
   const list = h('div', { class: 'ks-list' });
   const rows = {};
-  const available = K.runUpgradesFor(run.tier);
+  const available = K.runUpgradesFor(run.tier, meta);
+  const runTabs = [['attack', 'Attack'], ['defense', 'Defense'], ['economy', 'Economy']];
+  if (available.some((u) => u.tab === 'ability')) runTabs.push(['ability', 'Abilities']);
   function drawTabs() {
-    tabs.replaceChildren(...[['attack', 'Attack'], ['defense', 'Defense'], ['economy', 'Economy']].map(([id, l]) =>
+    tabs.replaceChildren(...runTabs.map(([id, l]) =>
       h('button', { 'aria-pressed': String(tab === id), onclick: () => { tab = id; drawTabs(); buildList(); } }, l)));
     qtySeg.replaceChildren(...[[1, '×1'], [10, '×10'], ['max', 'Max']].map(([v, l]) =>
       h('button', { 'aria-pressed': String(qty === v), onclick: () => { qty = v; store.set('ks:qty', v); drawTabs(); refreshList(); } }, l)));

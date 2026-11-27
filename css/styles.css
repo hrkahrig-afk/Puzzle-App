@@ -518,3 +518,9 @@ main#view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ks-wrow .lbl { flex: 1 1 40%; min-width: 0; font-size: 14px; }
 .ks-slider { flex: 1 1 45%; accent-color: var(--idle); min-width: 90px; }
 .ks-wout { width: 22px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ks-abpow { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.ks-abpow small { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.ks-tabs button { padding-left: 7px; padding-right: 7px; }
+.ks-panel-top { gap: 6px; }
+.ks-panel-top .seg button { padding: 7px 7px; font-size: 13px; }
+@media (max-width: 420px) { .ks-panel-top .seg button { padding: 6px 5px; font-size: 12.5px; } }

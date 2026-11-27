@@ -100,9 +100,18 @@ export const RUN_UPGRADES = [
   { id: 'freedn', tab: 'economy', name: 'Free defense amount',  c0: 500, g: 5, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
   { id: 'freee',  tab: 'economy', name: 'Free economy upgrade', c0: 60, g: 1.1, max: 76, val: (L) => 0.005 * L, fmt: 'freepct', free: true },
   { id: 'freeen', tab: 'economy', name: 'Free economy amount',  c0: 500, g: 5, max: 4, val: (L) => 1 + L, fmt: 'levels', free: true },
+
+  // ability upgrades (shown once you own the ability)
+  { id: 'ab_pulse',     tab: 'ability', name: 'Pulse power',     ability: 'pulse',     c0: 40, g: 1.2, val: (L) => 0.02 * L, fmt: 'abpow' },
+  { id: 'ab_freeze',    tab: 'ability', name: 'Freeze power',    ability: 'freeze',    c0: 40, g: 1.2, val: (L) => 0.02 * L, fmt: 'abpow' },
+  { id: 'ab_overdrive', tab: 'ability', name: 'Overdrive power', ability: 'overdrive', c0: 40, g: 1.2, val: (L) => 0.02 * L, fmt: 'abpow' },
+  { id: 'ab_repair',    tab: 'ability', name: 'Repair power',    ability: 'repair',    c0: 40, g: 1.2, val: (L) => 0.02 * L, fmt: 'abpow' },
+  { id: 'ab_orbit',     tab: 'ability', name: 'Orbit power',     ability: 'orbit',     c0: 60, g: 1.2, val: (L) => 0.02 * L, fmt: 'abpow' },
+  { id: 'ab_chain',     tab: 'ability', name: 'Chain power',     ability: 'chain',     c0: 80, g: 1.2, val: (L) => 0.02 * L, fmt: 'abpow' },
+  { id: 'ab_cd',        tab: 'ability', name: 'Ability cooldown', c0: 60, g: 1.15, max: 40, val: (L) => 0.005 * L, fmt: 'abcd' },
 ];
 export const RUN_BY_ID = Object.fromEntries(RUN_UPGRADES.map((u) => [u.id, u]));
-export const runUpgradesFor = (tier) => RUN_UPGRADES.filter((u) => (u.tier || 1) <= tier);
+export const runUpgradesFor = (tier, meta = null) => RUN_UPGRADES.filter((u) => (u.tier || 1) <= tier && (!u.ability || (meta && meta.abilities && meta.abilities[u.ability])));
 
 // ---------- Workshop: permanent upgrades (shards) ----------
 // Multiplicative so they keep mattering; costs grow a little faster than the benefit.
@@ -178,6 +187,27 @@ export const ABILITIES = [
   { id: 'chain',     name: 'Chain',     desc: 'Lightning arcs through the 6 nearest enemies',          cost: 12000, cd: 20, tier: 5 },
 ];
 export const AUTOCAST_COST = 120;
+// Permanent ability power (shards): +3% per level, no cap.
+export const ABILITY_POWER_PER = 0.03;
+export const abilityPowerLv = (meta, id) => (meta.abilityLv || {})[id] || 0;
+export function abilityPowerCost(meta, id) {
+  const ab = ABILITIES.find((a) => a.id === id);
+  const base = Math.max(10, Math.round(ab.cost * 0.4));
+  return Math.ceil(base * Math.pow(1.17, abilityPowerLv(meta, id)));
+}
+export function buyAbilityPower(meta, id) {
+  if (!meta.abilities[id]) return false;
+  const c = abilityPowerCost(meta, id);
+  if (meta.shards < c) return false;
+  meta.shards -= c;
+  meta.abilityLv = meta.abilityLv || {};
+  meta.abilityLv[id] = abilityPowerLv(meta, id) + 1;
+  return true;
+}
+// Combined power multiplier for an ability in a run (permanent × in-run).
+export function abilityPower(run, meta, id) {
+  return (1 + ABILITY_POWER_PER * abilityPowerLv(meta, id)) * (1 + lvl(run.levels, 'ab_' + id) * 0.02);
+}
 
 
 // Clock used for missions (replaceable so the simulator can fast-forward days).
@@ -293,10 +323,10 @@ function gearCritAdd(meta) {
 // buys the one furthest behind its share (weights count to the power 1.5, so top
 // priorities are bought from the start).
 export const SCHEMATICS = [
-  { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2, distm: 2, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 1, interest: 2, freee: 1, freeen: 1, splash: 2, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 2, reflect: 1, aura: 1, drones: 1, bounty: 1, overkill: 1, streak: 1 } },
-  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 1, crit: 3, critx: 3, multi: 1, bounce: 1, exec: 1, knock: 1, super: 1, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 0, coins: 1, wavec: 1, distm: 1, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 0, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 2, reflect: 0, aura: 0, drones: 0, bounty: 0, overkill: 0, streak: 0 } },
-  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 0, chill: 2, burn: 0, eliteb: 0, waveheal: 4, dodge: 4, reflect: 3, aura: 3, drones: 3, bounty: 0, overkill: 0, streak: 0 } },
-  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy first, with just enough to survive', w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 0, exec: 0, knock: 0, super: 0, hp: 3, regen: 2, armor: 1, thorns: 0, wall: 1, leech: 0, salvage: 0, coins: 4, wavec: 4, distm: 0, mshots: 0, thresh: 1, interest: 3, freea: 1, freean: 1, freed: 1, freedn: 1, freee: 2, freeen: 1, splash: 0, pierce: 0, chill: 0, burn: 0, eliteb: 0, waveheal: 1, dodge: 0, reflect: 0, aura: 0, drones: 0, bounty: 4, overkill: 3, streak: 3 } },
+  { id: 'balanced', name: 'Balanced', desc: 'A bit of everything',            w: { dmg: 4, rate: 3, range: 2, crit: 2, critx: 2, multi: 2, bounce: 2, exec: 1, knock: 1, super: 2, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 1, coins: 2, wavec: 2, distm: 2, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 1, interest: 2, freee: 1, freeen: 1, splash: 2, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 2, reflect: 1, aura: 1, drones: 1, bounty: 1, overkill: 1, streak: 1, ab_pulse: 1, ab_freeze: 1, ab_overdrive: 1, ab_repair: 1, ab_orbit: 1, ab_chain: 1, ab_cd: 1 } },
+  { id: 'assault',  name: 'Assault',  desc: 'Damage, speed and crits first',  w: { dmg: 4, rate: 4, range: 1, crit: 3, critx: 3, multi: 1, bounce: 1, exec: 1, knock: 1, super: 1, hp: 4, regen: 3, armor: 2, thorns: 1, wall: 2, leech: 1, salvage: 0, coins: 1, wavec: 1, distm: 1, mshots: 1, freea: 1, freean: 1, thresh: 2, freed: 1, freedn: 0, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 1, chill: 1, burn: 1, eliteb: 1, waveheal: 2, dodge: 2, reflect: 0, aura: 0, drones: 0, bounty: 0, overkill: 0, streak: 0, ab_pulse: 2, ab_freeze: 0, ab_overdrive: 2, ab_repair: 0, ab_orbit: 2, ab_chain: 2, ab_cd: 1 } },
+  { id: 'fortress', name: 'Fortress', desc: 'Outlast everything',             w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 1, exec: 1, knock: 3, super: 1, hp: 4, regen: 4, armor: 4, thorns: 3, wall: 4, leech: 3, salvage: 2, coins: 1, wavec: 1, distm: 1, mshots: 0, freea: 0, freean: 0, thresh: 4, freed: 2, freedn: 1, interest: 1, freee: 0, freeen: 0, splash: 1, pierce: 0, chill: 2, burn: 0, eliteb: 0, waveheal: 4, dodge: 4, reflect: 3, aura: 3, drones: 3, bounty: 0, overkill: 0, streak: 0, ab_pulse: 1, ab_freeze: 2, ab_overdrive: 0, ab_repair: 2, ab_orbit: 1, ab_chain: 0, ab_cd: 1 } },
+  { id: 'tycoon',   name: 'Tycoon',   desc: 'Economy first, with just enough to survive', w: { dmg: 3, rate: 2, range: 1, crit: 1, critx: 1, multi: 1, bounce: 0, exec: 0, knock: 0, super: 0, hp: 3, regen: 2, armor: 1, thorns: 0, wall: 1, leech: 0, salvage: 0, coins: 4, wavec: 4, distm: 0, mshots: 0, thresh: 1, interest: 3, freea: 1, freean: 1, freed: 1, freedn: 1, freee: 2, freeen: 1, splash: 0, pierce: 0, chill: 0, burn: 0, eliteb: 0, waveheal: 1, dodge: 0, reflect: 0, aura: 0, drones: 0, bounty: 4, overkill: 3, streak: 3, ab_pulse: 0, ab_freeze: 0, ab_overdrive: 0, ab_repair: 0, ab_orbit: 0, ab_chain: 0, ab_cd: 0 } },
 ];
 // Custom schematics use a 0–10 scale (10 = the presets' top priority of 4).
 export const CUSTOM_MAX = 10;
@@ -349,7 +379,7 @@ export function autoBuy(run, meta, maxBuys = 6) {
   const focus = run.wave <= FOCUS_WAVES ? schematicFocus(meta) : null;
   for (let k = 0; k < maxBuys; k++) {
     let best = focus ? null : floorPick();
-    for (const u of best ? [] : runUpgradesFor(run.tier)) {
+    for (const u of best ? [] : runUpgradesFor(run.tier, meta)) {
       if (focus && u.tab !== focus) continue;
       const wt = w[u.id] || 0;
       if (!wt) continue;
@@ -729,7 +759,7 @@ export function newMeta() {
     best: {}, maxTier: 1, tier: 1, bestWave: 0, runs: 0, lastSeen: Date.now(),
     gear: {}, loadout: [], schematic: 'balanced', customSchematic: null, autoBuy: false, autoPerk: true,
     missions: {}, records: {}, event: {}, skins: {}, skin: null,
-    allies: {}, labQueue: [], headStats: ['dmg', 'hp', 'rate'],
+    allies: {}, labQueue: [], headStats: ['dmg', 'hp', 'rate'], abilityLv: {},
   };
 }
 
@@ -956,7 +986,7 @@ export function buy(run, meta, id, count) {
 
 // Give `amount` free levels to a random upgrade in a tab (not the free-upgrade stats themselves).
 export function grantFree(run, meta, tab, amount, rand = Math.random) {
-  const pool = runUpgradesFor(run.tier).filter((u) => u.tab === tab && !u.free && (u.max == null || lvl(run.levels, u.id) < u.max));
+  const pool = runUpgradesFor(run.tier, meta).filter((u) => u.tab === tab && !u.free && (u.max == null || lvl(run.levels, u.id) < u.max));
   if (!pool.length) return null;
   const u = pool[Math.floor(rand() * pool.length)];
   const n = u.max == null ? amount : Math.min(amount, u.max - lvl(run.levels, u.id));
@@ -1156,30 +1186,34 @@ export function useAbility(run, meta, id, events = [], rand = Math.random) {
   if (!meta.abilities[id] || (run.cds[id] || 0) > 0 || run.over) return false;
   const ab = ABILITIES.find((a) => a.id === id);
   const s = stats(run, meta);
-  run.cds[id] = abilityCd(meta, ab) * s.cdMult;
+  const cd = abilityCd(meta, ab) * s.cdMult * (1 - lvl(run.levels, 'ab_cd') * 0.005);
+  run.cds[id] = cd;
+  const pw = abilityPower(run, meta, id);
+  const dur = (base) => Math.min(base * pw, cd * 0.75); // never longer than 3/4 of the cooldown
   run.stats.abilities++;
   track(meta, 'abilities', 1);
   if (id === 'pulse') {
     const rad = 210;
-    for (const e of run.enemies) if (Math.hypot(e.x, e.y) <= rad) { e.push = 70; damage(run, meta, s, e, s.dmg * 8, events, rand, 'pulse'); }
+    for (const e of run.enemies) if (Math.hypot(e.x, e.y) <= rad) { e.push = 70 * Math.min(2, pw); damage(run, meta, s, e, s.dmg * 8 * pw, events, rand, 'pulse'); }
     run.rings.push({ r: 0, max: rad, t: 0, kind: 'pulse' });
   } else if (id === 'freeze') {
-    run.fx.freeze = 6;
+    run.fx.freeze = dur(6);
     run.rings.push({ r: 0, max: R, t: 0, kind: 'freeze' });
   } else if (id === 'overdrive') {
-    run.fx.overdrive = 8;
+    run.fx.overdrive = dur(8);
   } else if (id === 'repair') {
-    run.hp = Math.min(s.maxHp, run.hp + s.maxHp * 0.4);
+    run.hp = Math.min(s.maxHp, run.hp + s.maxHp * Math.min(1, 0.4 * pw));
     run.rings.push({ r: 0, max: 60, t: 0, kind: 'repair' });
   } else if (id === 'orbit') {
-    run.fx.orbit = 10;
+    run.fx.orbit = dur(10);
+    run.orbitPow = pw;
   } else if (id === 'chain') {
-    const near = run.enemies.map((e) => [e, Math.hypot(e.x, e.y)]).sort((a, b) => a[1] - b[1]).slice(0, 6).map((x) => x[0]);
+    const near = run.enemies.map((e) => [e, Math.hypot(e.x, e.y)]).sort((a, b) => a[1] - b[1]).slice(0, 6 + Math.floor((pw - 1) / 0.5)).map((x) => x[0]);
     let px = 0, py = 0;
     for (const e of near) {
       run.zaps.push({ x1: px, y1: py, x2: e.x, y2: e.y, t: 0 });
       px = e.x; py = e.y;
-      damage(run, meta, s, e, s.dmg * 15, events, rand, 'chain');
+      damage(run, meta, s, e, s.dmg * 15 * pw, events, rand, 'chain');
     }
   }
   run.enemies = run.enemies.filter((e) => e.hp > 0);
@@ -1327,7 +1361,7 @@ export function step(run, meta, dt, rand = Math.random) {
       run.orbitT = 0.25;
       for (const e of run.enemies) {
         const d = Math.hypot(e.x, e.y);
-        if (d > 50 && d < 115) damage(run, meta, s, e, s.dmg * 1.2, events, rand, 'orbit');
+        if (d > 50 && d < 115) damage(run, meta, s, e, s.dmg * 1.2 * (run.orbitPow || 1), events, rand, 'orbit');
       }
       run.enemies = run.enemies.filter((e) => e.hp > 0);
     }
