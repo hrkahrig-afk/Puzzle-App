@@ -7,7 +7,7 @@ import { pickCrossword } from './app.js';
 let worker = null;
 let reqId = 0;
 const pending = new Map();
-function generate(size, seed) {
+function generate(size, seed, style) {
   if (!worker) {
     worker = new Worker(new URL('./crossword-worker.js', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => {
@@ -21,7 +21,7 @@ function generate(size, seed) {
   const id = ++reqId;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    worker.postMessage({ id, size, seed });
+    worker.postMessage({ id, size, seed, style });
   });
 }
 
@@ -38,10 +38,12 @@ export function mount(view, params, ui) {
   async function start() {
     let st = store.get(key);
     let size, seed;
+    const style = settings.cwStyle === 'classic' ? 'classic' : 'open';
     if (mode === 'daily') {
       size = settings.cwDailySize;
-      if (st && st.date === today && st.size === size) return play(st);
-      seed = hashStr(`cw:${today}:${size}`);
+      // a started daily is kept even if the grid style setting changed since
+      if (st && st.date === today && st.size === size && ((st.style || 'classic') === style || st.status === 'won' || st.entries.some(Boolean))) return play(st);
+      seed = hashStr(style === 'open' ? `cw:${today}:${size}:open` : `cw:${today}:${size}`);
     } else if (params[0] === 'new') {
       size = Math.max(4, Math.min(15, parseInt(params[1], 10) || settings.cwNewSize));
       seed = (Math.random() * 2 ** 32) >>> 0;
@@ -53,12 +55,12 @@ export function mount(view, params, ui) {
     ui.setTitle(h('span', {}, 'Crossword', h('span', { class: 'mode-pill' }, `${size}×${size}`)));
     loading(`Building your ${size}×${size} puzzle…`);
     try {
-      const puzzle = await generate(size, seed);
+      const puzzle = await generate(size, seed, style);
       if (destroyed) return;
-      st = { size, puzzle, entries: Array(size * size).fill(''), revealed: [], wrong: [], elapsed: 0, status: 'playing' };
+      st = { size, style, puzzle, entries: Array(size * size).fill(''), revealed: [], wrong: [], elapsed: 0, status: 'playing' };
       if (mode === 'daily') st.date = today;
       store.set(key, st);
-      if (params[0] === 'new') history.replaceState(null, '', '#/crossword/practice');
+      if (params[0] === 'new') history.replaceState(history.state, '', '#/crossword/practice');
       play(st);
     } catch (e) {
       console.error(e);
@@ -80,6 +82,8 @@ function game(view, st, key, mode, ui) {
   const P = st.puzzle;
   const n = P.size;
   const N = n * n;
+  const open = P.style === 'open';
+  const bestKey = open ? `cw:o${n}` : `cw:${n}`;
   const isBlock = (i) => P.grid[(i / n) | 0][i % n] === '#';
   const answer = (i) => P.grid[(i / n) | 0][i % n];
 
@@ -125,12 +129,12 @@ function game(view, st, key, mode, ui) {
   };
 
   // ----- grid -----
-  const grid = h('div', { class: 'cw-grid' });
+  const grid = h('div', { class: 'cw-grid' + (open ? ' open' : '') });
   const cells = [];
   for (let i = 0; i < N; i++) {
     const blk = isBlock(i);
     const num = P.numbers[i];
-    const corner = i === 0 ? ' tl' : i === n - 1 ? ' tr' : i === N - n ? ' bl' : i === N - 1 ? ' br' : '';
+    const corner = open ? '' : i === 0 ? ' tl' : i === n - 1 ? ' tr' : i === N - n ? ' bl' : i === N - 1 ? ' br' : '';
     const c = h('div', { class: 'cw-cell' + (blk ? ' block' : '') + corner },
       !blk && num ? h('span', { class: 'n' }, String(num)) : null,
       blk ? null : h('span', { class: 'l' }));
@@ -331,14 +335,14 @@ function game(view, st, key, mode, ui) {
     save();
     render();
     if (mode === 'daily') recordDaily('crossword', st.date, true);
-    const isBest = revealed.size === 0 && recordBest(`cw:${n}`, st.elapsed);
+    const isBest = revealed.size === 0 && recordBest(bestKey, st.elapsed);
     haptic([30, 60, 30]);
     const total = finale();
     setTimeout(() => cells.forEach((c, i) => { if (!isBlock(i)) c.classList.add('ok'); }), total);
     setTimeout(() => showWin(isBest), total + 150);
   }
   function showWin(isBest) {
-    const best = getBest(`cw:${n}`);
+    const best = getBest(bestKey);
     const close = sheet('Puzzle solved!', h('div', {},
       h('div', { class: 'big-result' }, `${n}×${n} · ${isBest ? 'new best time!' : 'time'}`, h('b', {}, fmtTime(st.elapsed))),
       h('div', { class: 'stats-row', style: { gridTemplateColumns: 'repeat(3,1fr)' } },

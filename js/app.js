@@ -9,21 +9,34 @@ const actionsEl = document.getElementById('actions');
 const backBtn = document.getElementById('backBtn');
 
 let cleanup = null;
-let cameFromHome = false;
+// Each history entry remembers the trail of pages that led to it, so the back
+// arrow can return to the right parent page instead of whatever came last.
+let curStack = [];
+const normHash = (hash) => '#/' + String(hash || '').replace(/^#\/?/, '').split('/').filter(Boolean).join('/');
+const parentOf = (hash) => (/^#\/keystone\/./.test(hash) ? '#/keystone' : '#/');
+function setEntry(stack, hash) {
+  curStack = stack.slice(-60);
+  history.replaceState({ stack: curStack }, '', hash);
+}
 
 export const ui = {
   setTitle(t) { titleEl.replaceChildren(t); },
   setActions(nodes) { actionsEl.replaceChildren(...nodes.filter(Boolean)); },
   go(hash, { replace = false } = {}) {
-    if (replace) { history.replaceState(null, '', hash); route(); }
+    if (replace) { setEntry([...curStack.slice(0, -1), normHash(hash)], hash); route(); }
     else location.hash = hash;
   },
 };
 
 backBtn.addEventListener('click', goHome);
 function goHome() {
-  if (cameFromHome) history.back();
-  else { history.replaceState(null, '', '#/'); route(); }
+  const cur = normHash(location.hash);
+  const parent = parentOf(cur);
+  // if the parent page is earlier in this trail, step back to it (keeps history tidy
+  // for the phone's back button); otherwise just show the parent in place
+  const i = curStack.lastIndexOf(parent, curStack.length - 2);
+  if (curStack.length >= 2 && i >= 0) history.go(i - (curStack.length - 1));
+  else { setEntry([...curStack.slice(0, -1), parent], parent); route(); }
 }
 
 const GAMES = {
@@ -38,13 +51,17 @@ async function route() {
   if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } cleanup = null; }
   view.replaceChildren();
   actionsEl.replaceChildren();
+  const cur = normHash(location.hash);
+  const st = history.state && Array.isArray(history.state.stack) ? history.state.stack : null;
+  if (st) setEntry([...st.slice(0, -1), cur], location.hash || '#/'); // an existing entry (back/forward)
+  else setEntry([...curStack, cur], location.hash || '#/'); // a newly opened page
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   const [page, ...rest] = parts;
   backBtn.hidden = !page;
-  if (!page) { cameFromHome = true; return renderHome(); }
+  if (!page) return renderHome();
   if (page === 'settings') return renderSettings();
   const g = GAMES[page];
-  if (!g) { history.replaceState(null, '', '#/'); return route(); }
+  if (!g) { setEntry([...curStack.slice(0, -1), '#/'], '#/'); return route(); }
   ui.setTitle(g.name);
   try {
     const mod = await g.load();
@@ -87,7 +104,7 @@ function dailyStatus(game) {
   }
   const d = store.get('cw:daily');
   const n = s.cwDailySize;
-  if (d && d.date === today && d.size === n) {
+  if (d && d.date === today && d.size === n && ((d.style || 'classic') === (s.cwStyle === 'classic' ? 'classic' : 'open') || d.status === 'won' || d.entries.some(Boolean))) {
     if (d.status === 'won') return { done: true, text: `${n}×${n} · solved` };
     return { text: `${n}×${n} · in progress` };
   }
@@ -218,6 +235,7 @@ function renderSettings() {
     ),
     h('div', { class: 'section-label' }, 'Crossword'),
     h('div', { class: 'set-group' },
+      item('Grid style', 'Open: words cross at single squares, with open space between. Classic: dense grid with black squares.', seg([['open', 'Open'], ['classic', 'Classic']], s.cwStyle === 'classic' ? 'classic' : 'open', (v) => setSetting('cwStyle', v))),
       item('Daily puzzle size', 'Changes today’s daily grid too', miniStep(s.cwDailySize, 4, 15, sz, (v) => setSetting('cwDailySize', v))),
       item('Flag wrong letters', 'Mark a letter red as soon as it’s wrong. Turn off to fill in freely and check yourself.', toggle(s.cwAutoCheck, (v) => setSetting('cwAutoCheck', v))),
       item('New puzzle size', 'Default when you start a new one', miniStep(s.cwNewSize, 4, 15, sz, (v) => setSetting('cwNewSize', v))),
@@ -263,7 +281,7 @@ function confirmReset() {
 
 // Bump with every release: the first launch after an update backs up the save on
 // the phone and asks the player to export a copy somewhere safe.
-const APP_VERSION = '2026.11.27-1';
+const APP_VERSION = '2026.11.27-2';
 function checkUpdate() {
   const prev = store.get('appVersion', null);
   if (prev === APP_VERSION) return;

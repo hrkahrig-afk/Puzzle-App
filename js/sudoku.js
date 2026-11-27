@@ -24,7 +24,7 @@ export function mount(view, params, ui) {
     const diff = ['easy', 'medium', 'hard', 'expert'].includes(params[1]) ? params[1] : settings.sudokuNew;
     st = fresh(generateSudoku(diff, (Math.random() * 2 ** 32) >>> 0));
     store.set('sudoku:practice', st);
-    history.replaceState(null, '', '#/sudoku/practice');
+    history.replaceState(history.state, '', '#/sudoku/practice');
   } else {
     st = store.get('sudoku:practice');
     if (!st) { st = fresh(generateSudoku(settings.sudokuNew, (Math.random() * 2 ** 32) >>> 0)); }

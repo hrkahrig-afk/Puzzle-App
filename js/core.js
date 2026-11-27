@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS = {
   hardMode: false,          // wordle hard mode
   haptics: true,
   showTimer: true,
+  cwStyle: 'open',          // crossword: 'open' (criss-cross) or 'classic' (dense)
   cwAutoCheck: true,        // crossword: flag wrong letters as you type
 };
 export function getSettings() { return { ...DEFAULT_SETTINGS, ...store.get('settings', {}) }; }

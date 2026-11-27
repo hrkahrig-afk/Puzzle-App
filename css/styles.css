@@ -330,6 +330,9 @@ main#view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .cw-cell.wrong .l { color: var(--wrong); }
 .cw-cell.wrong::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top right, transparent calc(50% - 1px), var(--wrong) 50%, transparent calc(50% + 1px)); opacity: .8; }
 .cw-cell.ok .l, .cw-cell.locked .l { color: var(--wordle); }
+.cw-grid.open { background: transparent; border-color: transparent; gap: 2px; }
+.cw-grid.open .cw-cell:not(.block) { border-radius: 3px; box-shadow: 0 0 0 1px var(--block); box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 50%, transparent); }
+.cw-grid.open .cw-cell.block { background: transparent; }
 .cw-clues { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; align-content: start; }
 .cw-clues h4 { margin: 4px 0 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); position: sticky; top: 0; background: var(--bg); padding: 4px 0; }
 .cw-clue { display: flex; gap: 6px; font-size: 13.5px; line-height: 1.3; padding: 5px 6px; border-radius: 8px; cursor: pointer; }

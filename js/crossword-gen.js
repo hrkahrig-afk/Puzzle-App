@@ -365,3 +365,152 @@ export function generateCrossword(size, seed, indexes) {
   }
   return null;
 }
+
+// ---------- Open (criss-cross) style ----------
+// Words cross each other at single squares; every other square belongs to just
+// one word, and words never touch side by side. Empty squares are open space.
+function buildOpen(n, idx, rand) {
+  const N = n * n;
+  const L = new Int8Array(N).fill(-1); // letter at each cell (0..25), -1 empty
+  const hasA = new Uint8Array(N), hasD = new Uint8Array(N);
+  const words = []; // {dir,row,col,len,j}
+  const used = new Set();
+  const at = (r, c) => (r < 0 || c < 0 || r >= n || c >= n ? -1 : L[r * n + c]);
+
+  function pickWord(b, mask) {
+    const ids = [];
+    for (let w = 0; w < b.W; w++) {
+      let x = mask[w];
+      while (x) { const t = x & -x; ids.push((w << 5) + 31 - Math.clz32(t)); x ^= t; }
+    }
+    const ok = ids.filter((j) => !used.has(b.words[j]));
+    if (!ok.length) return -1;
+    // favour common words, with some variety
+    ok.sort((a, c) => b.z[c] - b.z[a]);
+    const top = Math.max(1, Math.ceil(ok.length * 0.25));
+    return ok[Math.floor(rand() * Math.min(top, 40))];
+  }
+
+  // try to fit a word of length len starting at (r,c) in direction d
+  function evaluate(d, r, c, len) {
+    const dr = d === 'D' ? 1 : 0, dc = d === 'A' ? 1 : 0;
+    const er = r + dr * (len - 1), ec = c + dc * (len - 1);
+    if (r < 0 || c < 0 || er >= n || ec >= n) return null;
+    if (at(r - dr, c - dc) >= 0 || at(er + dr, ec + dc) >= 0) return null;
+    const b = idx.byLen.get(len);
+    if (!b) return null;
+    const mask = b.all.slice();
+    let cross = 0;
+    for (let k = 0; k < len; k++) {
+      const rr = r + dr * k, cc = c + dc * k, i = rr * n + cc;
+      if (L[i] >= 0) {
+        if (d === 'A' ? hasA[i] : hasD[i]) return null;
+        // two crossings in a row would mean parallel words touching
+        if (k > 0 && L[i - (dr * n + dc)] >= 0) return null;
+        cross++;
+        const p = b.pos[k * 26 + L[i]];
+        let any = 0;
+        for (let w = 0; w < b.W; w++) any |= (mask[w] &= p[w]);
+        if (!any) return null;
+      } else if (at(rr + dc, cc + dr) >= 0 || at(rr - dc, cc - dr) >= 0) return null; // side neighbours must be open
+    }
+    if (!cross && words.length) return null;
+    return { mask, cross, b };
+  }
+
+  function place(d, r, c, len, j) {
+    const b = idx.byLen.get(len);
+    const w = b.words[j];
+    used.add(w);
+    words.push({ dir: d, row: r, col: c, len, j });
+    for (let k = 0; k < len; k++) {
+      const i = (r + (d === 'D' ? k : 0)) * n + c + (d === 'A' ? k : 0);
+      L[i] = w.charCodeAt(k) - A;
+      (d === 'A' ? hasA : hasD)[i] = 1;
+    }
+  }
+
+  // first word: a long across word through the middle
+  const len0 = Math.max(3, n - Math.floor(rand() * Math.min(3, n - 2)));
+  const r0 = Math.floor(n / 2) + (n > 6 ? Math.floor(rand() * 3) - 1 : 0);
+  const c0 = Math.floor(rand() * (n - len0 + 1));
+  const first = evaluate('A', r0, c0, len0);
+  if (!first) return null;
+  const j0 = pickWord(first.b, first.mask);
+  if (j0 < 0) return null;
+  place('A', r0, c0, len0, j0);
+
+  const maxWords = Math.round(n * n / 5) + 2;
+  for (let step = 0; step < maxWords; step++) {
+    // candidate anchors: letters with only one word through them
+    const anchors = [];
+    for (let i = 0; i < N; i++) if (L[i] >= 0 && hasA[i] + hasD[i] === 1) anchors.push(i);
+    for (let k = anchors.length - 1; k > 0; k--) { const m = Math.floor(rand() * (k + 1)); [anchors[k], anchors[m]] = [anchors[m], anchors[k]]; }
+    let best = null;
+    for (const i of anchors.slice(0, 40)) {
+      const d = hasA[i] ? 'D' : 'A';
+      const r = (i / n) | 0, c = i % n;
+      const pos = d === 'D' ? r : c;
+      for (let len = 3; len <= n; len++) {
+        for (let off = Math.max(0, pos - (n - len)); off <= Math.min(len - 1, pos); off++) {
+          const sr = d === 'D' ? r - off : r, sc = d === 'A' ? c - off : c;
+          const ev = evaluate(d, sr, sc, len);
+          if (!ev) continue;
+          const cnt = ev.mask.reduce((a, x) => a + popcount(x), 0);
+          if (!cnt) continue;
+          // more crossings and longer words make a tighter, more interesting grid
+          const score = ev.cross * 5 + len * 0.9 + Math.min(3, Math.log2(cnt) * 0.4) + rand() * 3;
+          if (!best || score > best.score) best = { score, d, sr, sc, len, ev };
+        }
+      }
+    }
+    if (!best) break;
+    const j = pickWord(best.ev.b, best.ev.mask);
+    if (j < 0) break;
+    place(best.d, best.sr, best.sc, best.len, j);
+  }
+
+  // shift the layout so it sits in the middle of the square
+  let minR = n, maxR = -1, minC = n, maxC = -1;
+  for (let i = 0; i < N; i++) if (L[i] >= 0) { const r = (i / n) | 0, c = i % n; minR = Math.min(minR, r); maxR = Math.max(maxR, r); minC = Math.min(minC, c); maxC = Math.max(maxC, c); }
+  const sr = Math.floor((n - 1 - maxR - minR) / 2), sc = Math.floor((n - 1 - maxC - minC) / 2);
+  const filled = L.reduce((a, x) => a + (x >= 0), 0);
+  return { words: words.map((w) => ({ ...w, row: w.row + sr, col: w.col + sc })), filled, span: (maxR - minR + 1) * (maxC - minC + 1) };
+}
+
+export function generateOpenCrossword(size, seed, indexes) {
+  const rand = mulberry32(seed ^ 0x5bd1e995);
+  const n = Math.max(4, Math.min(15, size | 0));
+  let best = null, bestIdx = null;
+  const tries = n <= 7 ? 14 : 8;
+  for (let t = 0; t < tries; t++) {
+    const idx = indexes[t < tries - 2 ? 0 : 1];
+    const res = buildOpen(n, idx, rand);
+    if (!res || res.words.length < 2) continue;
+    // reward letters used and how much of the square the puzzle spans
+    const score = res.filled + res.span * 0.15 + res.words.length;
+    if (!best || score > best.score) { best = { ...res, score }; bestIdx = idx; }
+  }
+  if (!best) return null;
+  const N = n * n;
+  const letters = Array(N).fill('#');
+  for (const w of best.words) {
+    const word = bestIdx.byLen.get(w.len).words[w.j].toUpperCase();
+    for (let k = 0; k < w.len; k++) letters[(w.row + (w.dir === 'D' ? k : 0)) * n + w.col + (w.dir === 'A' ? k : 0)] = word[k];
+  }
+  const numbers = new Array(N).fill(0);
+  const starts = new Map();
+  for (const w of best.words) starts.set(w.row * n + w.col, true);
+  let num = 0;
+  for (let i = 0; i < N; i++) if (starts.has(i)) numbers[i] = ++num;
+  const across = [], down = [];
+  for (const w of best.words) {
+    const b = bestIdx.byLen.get(w.len);
+    const entry = { num: numbers[w.row * n + w.col], row: w.row, col: w.col, len: w.len, answer: b.words[w.j].toUpperCase(), clue: b.clues[w.j] };
+    (w.dir === 'A' ? across : down).push(entry);
+  }
+  across.sort((a, b) => a.num - b.num); down.sort((a, b) => a.num - b.num);
+  const grid = [];
+  for (let r = 0; r < n; r++) grid.push(letters.slice(r * n, r * n + n).join(''));
+  return { size: n, style: 'open', grid, numbers, across, down, seed };
+}

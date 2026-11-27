@@ -1,4 +1,4 @@
-import { WordIndex, generateCrossword } from './crossword-gen.js';
+import { WordIndex, generateCrossword, generateOpenCrossword } from './crossword-gen.js';
 
 let indexes = null;
 async function load() {
@@ -10,12 +10,13 @@ async function load() {
 }
 
 self.onmessage = async (e) => {
-  const { id, size, seed } = e.data;
+  const { id, size, seed, style } = e.data;
+  const gen = style === 'open' ? generateOpenCrossword : generateCrossword;
   try {
     const idx = await load();
-    let puzzle = generateCrossword(size, seed, idx);
+    let puzzle = gen(size, seed, idx);
     // extremely unlikely: try a few other seeds before giving up
-    for (let k = 1; !puzzle && k < 5; k++) puzzle = generateCrossword(size, seed + k * 7919, idx);
+    for (let k = 1; !puzzle && k < 5; k++) puzzle = gen(size, seed + k * 7919, idx);
     self.postMessage({ id, puzzle });
   } catch (err) {
     self.postMessage({ id, error: String(err && err.message || err) });
