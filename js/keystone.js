@@ -778,7 +778,6 @@ function mountRun(view, ui, asEvent = false) {
     dpr = Math.min(3, window.devicePixelRatio || 1);
     canvas.style.width = canvas.style.height = side + 'px';
     canvas.width = canvas.height = Math.floor(side * dpr);
-    scale = (side / 2) / (K.R + 26);
   }
   const ro = new ResizeObserver(fit);
   ro.observe(stage);
@@ -798,7 +797,11 @@ function mountRun(view, ui, asEvent = false) {
   let shake = 0;
   let clock = 0;
   const pendingEvents = [];
-  const motes = Array.from({ length: 34 }, () => ({ a: Math.random() * Math.PI * 2, r: 40 + Math.random() * (K.R - 30), s: 0.6 + Math.random() * 1.6, v: (Math.random() - 0.5) * 0.06, ph: Math.random() * 6 }));
+  // the view zooms out smoothly as the arena grows with your range
+  let viewR = K.arenaR(run);
+  let lastRange = 0;
+  const rangeFx = []; // { from, to, t } flash when range is upgraded
+  const motes = Array.from({ length: 34 }, () => ({ a: Math.random() * Math.PI * 2, f: Math.random(), s: 0.6 + Math.random() * 1.6, v: (Math.random() - 0.5) * 0.06, ph: Math.random() * 6 }));
   const add = (p) => { if (parts.length < MAX_PARTS) parts.push(p); };
   // kinds: spark (streak), chip (spinning square), coin (flies home), ring (expanding outline), glow (soft blob)
   function sparks(x, y, col, n, sp = 110, life = 0.45) {
@@ -848,7 +851,7 @@ function mountRun(view, ui, asEvent = false) {
       else if (e.t === 'blink') { ringFx(e.x, e.y, '#c9b6ff', 22, 0.3, 2); sparks(e.x, e.y, '#c9b6ff', 6, 70, 0.35); }
       else if (e.t === 'ability') {
         if (e.id === 'pulse') { kick(3); for (let k = 0; k < 40; k++) { const a = (k / 40) * Math.PI * 2; add({ kind: 'spark', x: Math.cos(a) * 30, y: Math.sin(a) * 30, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420, life: 0.45, t: 0, col: C.idle, s: 2.4 }); } }
-        else if (e.id === 'freeze') { for (let k = 0; k < 60; k++) { const a = Math.random() * Math.PI * 2, r = Math.random() * K.R; add({ kind: 'glow', x: Math.cos(a) * r, y: Math.sin(a) * r, life: 0.9 + Math.random() * 0.8, t: 0, col: '#bfe8ff', r: 4 + Math.random() * 5 }); } }
+        else if (e.id === 'freeze') { for (let k = 0; k < 60; k++) { const a = Math.random() * Math.PI * 2, r = Math.random() * K.arenaR(run); add({ kind: 'glow', x: Math.cos(a) * r, y: Math.sin(a) * r, life: 0.9 + Math.random() * 0.8, t: 0, col: '#bfe8ff', r: 4 + Math.random() * 5 }); } }
         else if (e.id === 'repair') { for (let k = 0; k < 24; k++) { const a = Math.random() * Math.PI * 2; add({ kind: 'spark', x: Math.cos(a) * 20, y: Math.sin(a) * 20, vx: Math.cos(a) * 30, vy: -60 - Math.random() * 60, life: 0.9, t: 0, col: '#6fe39a', s: 2.6 }); } }
         else if (e.id === 'overdrive') { ringFx(0, 0, C.idle, 70, 0.5, 4); }
         else if (e.id === 'chain') kick(2);
@@ -863,7 +866,7 @@ function mountRun(view, ui, asEvent = false) {
       } else if (e.t === 'tier') {
         meta.tier = e.tier; // next run starts in the new tier (can be changed at the base)
         banners.push({ text: `Tier ${e.tier} unlocked!`, sub: 'Your next run starts there', t: 0, gold: true });
-        ringFx(0, 0, '#ffd34d', K.R, 0.9, 5);
+        ringFx(0, 0, '#ffd34d', K.arenaR(run), 0.9, 5);
         haptic([20, 40, 20]);
         saveMeta(meta);
       } else if (e.t === 'interest') { lastInterest = e.v; }
@@ -883,7 +886,7 @@ function mountRun(view, ui, asEvent = false) {
         if (lastInterest) parts2.push(`+${fmtNum(lastInterest)} interest`);
         lastInterest = 0;
         banners.push({ text: `Wave ${e.wave}`, sub: parts2.join(' · '), t: 0 });
-        ringFx(0, 0, C.idle, K.R * 0.9, 0.8, 2);
+        ringFx(0, 0, C.idle, K.arenaR(run) * 0.9, 0.8, 2);
         saveRun(run);
       } else if (e.t === 'over') { kick(8); sparks(0, 0, C.idle, 60, 260, 0.9); endRun(); }
       else if (e.t === 'wallhit') { wallFlash = 0.15; if (e.broke) { ringFx(0, 0, '#cfe3f7', K.TOWER_R + 40, 0.5, 4); sparks(0, 0, '#cfe3f7', 18, 160, 0.5); } }
@@ -964,6 +967,16 @@ function mountRun(view, ui, asEvent = false) {
 
   function draw() {
     const s = K.stats(run, meta);
+    const arena = K.arenaR(run);
+    viewR += (arena - viewR) * 0.05;
+    if (Math.abs(arena - viewR) < 0.2) viewR = arena;
+    scale = (side / 2) / (viewR + 26);
+    const zf = viewR / K.R; // keeps line widths steady on screen while zoomed out
+    if (lastRange && s.range > lastRange + 0.5) {
+      const prev = rangeFx[rangeFx.length - 1];
+      if (prev && prev.t < 0.5) { prev.to = s.range; prev.t = Math.min(prev.t, 0.2); } else rangeFx.push({ from: lastRange, to: s.range, t: 0 });
+    }
+    lastRange = s.range;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, side, side);
     ctx.save();
@@ -974,12 +987,13 @@ function mountRun(view, ui, asEvent = false) {
     // ----- arena -----
     ctx.lineWidth = 1 / scale;
     ctx.strokeStyle = C.border;
-    for (let r = 80; r <= K.R; r += 80) { ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.globalAlpha = 0.45; ctx.stroke(); }
+    for (let r = 80; r <= viewR; r += 80) { ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.globalAlpha = 0.45; ctx.stroke(); }
     // drifting motes
     additive();
     for (const m of motes) {
       m.a += m.v * 0.016;
-      const x = Math.cos(m.a) * m.r, y = Math.sin(m.a) * m.r;
+      const mr = 40 + m.f * (viewR - 30);
+      const x = Math.cos(m.a) * mr, y = Math.sin(m.a) * mr;
       ctx.globalAlpha = (C.dark ? 0.35 : 0.25) * (0.5 + 0.5 * Math.sin(clock * 1.3 + m.ph));
       ctx.fillStyle = C.idle;
       ctx.fillRect(x, y, m.s, m.s);
@@ -988,15 +1002,42 @@ function mountRun(view, ui, asEvent = false) {
     // range ring: slowly turning dashes with a faint glow
     ctx.setLineDash([12, 9]);
     ctx.lineDashOffset = -clock * 12;
-    ctx.strokeStyle = C.idle; ctx.globalAlpha = 0.9; ctx.lineWidth = 3.2;
+    ctx.strokeStyle = C.idle; ctx.globalAlpha = 0.9; ctx.lineWidth = 3.2 * zf;
     ctx.beginPath(); ctx.arc(0, 0, s.range, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    ctx.globalAlpha = C.dark ? 0.16 : 0.12; ctx.lineWidth = 16;
+    ctx.globalAlpha = C.dark ? 0.16 : 0.12; ctx.lineWidth = 16 * zf;
     ctx.beginPath(); ctx.arc(0, 0, s.range, 0, Math.PI * 2); ctx.stroke();
     normal();
+    // range upgrade: a bright ring sweeps out from the old edge to the new one,
+    // the gained band glows briefly, and the new range is labelled on the ring
+    for (let k = rangeFx.length - 1; k >= 0; k--) {
+      const f = rangeFx[k];
+      f.t += 1 / 60;
+      if (f.t > 1.8) { rangeFx.splice(k, 1); continue; }
+      const grow = Math.min(1, f.t / 0.45), ease = 1 - (1 - grow) ** 3;
+      const r = f.from + (f.to - f.from) * ease;
+      const fade = f.t < 1.1 ? 1 : Math.max(0, 1 - (f.t - 1.1) / 0.7);
+      additive();
+      ctx.globalAlpha = 0.28 * fade; ctx.strokeStyle = C.idle; ctx.lineWidth = Math.max(2 * zf, r - f.from);
+      ctx.beginPath(); ctx.arc(0, 0, (f.from + r) / 2, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 0.95 * fade; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5 * zf;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+      normal();
+      const fs = 15 * zf * (side < 360 ? 1.15 : 1);
+      ctx.font = `700 ${fs}px system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const label = `Range ${Math.round(f.to)}`;
+      const tw = ctx.measureText(label).width + fs;
+      const ly = -r - fs * 1.1;
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = C.idle; ctx.beginPath(); ctx.roundRect(-tw / 2, ly - fs * 0.75, tw, fs * 1.5, fs * 0.75); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText(label, 0, ly + fs * 0.05);
+      normal();
+      ctx.textBaseline = 'alphabetic';
+    }
     if (run.fx.freeze > 0) {
       const f = Math.min(1, run.fx.freeze / 0.5);
-      ctx.fillStyle = '#8fd3ff'; ctx.globalAlpha = 0.12 * f; ctx.beginPath(); ctx.arc(0, 0, K.R + 20, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8fd3ff'; ctx.globalAlpha = 0.12 * f; ctx.beginPath(); ctx.arc(0, 0, viewR + 20, 0, Math.PI * 2); ctx.fill();
       normal();
     }
 

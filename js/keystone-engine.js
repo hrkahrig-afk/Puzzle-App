@@ -12,7 +12,11 @@
 //   Relics   – rare Warden drops that give small permanent bonuses; duplicates level them.
 
 export const VERSION = 3;
-export const R = 320;          // arena radius (world units)
+export const R = 320;          // starting arena radius (world units)
+// The arena grows with your range so enemies always appear this far outside it.
+export const ARENA_PAD = 155;
+export const arenaFor = (range) => Math.max(R, range + ARENA_PAD);
+export const arenaR = (run) => run.arena || R;
 export const TOWER_R = 28;
 export const WAVE_TIME = 20;   // seconds per wave
 export const SPAWN_TIME = 14;  // enemies of a wave spawn during this window
@@ -60,7 +64,7 @@ const g104 = (L) => Math.pow(1.04, L);
 export const RUN_UPGRADES = [
   { id: 'dmg',    tab: 'attack',  name: 'Damage',       c0: 6,  g: 1.16, val: (L) => 5 * (1 + 0.3 * L) * g104(L), fmt: 'num' },
   { id: 'rate',   tab: 'attack',  name: 'Attack speed', c0: 9,  g: 1.21, val: (L) => 1 + 0.08 * L, fmt: 'rate' },
-  { id: 'range',  tab: 'attack',  name: 'Range',        c0: 14, g: 1.16, max: 50, val: (L) => 165 + 3 * L, fmt: 'int' },
+  { id: 'range',  tab: 'attack',  name: 'Range',        c0: 14, g: 1.16, val: (L) => 165 + 3 * L, fmt: 'int' },
   { id: 'crit',   tab: 'attack',  name: 'Crit chance',  c0: 18, g: 1.1, max: 90, val: (L) => 0.01 * L, fmt: 'pct' },
   { id: 'critx',  tab: 'attack',  name: 'Crit damage',  c0: 22, g: 1.22, val: (L) => 1.5 + 0.1 * L, fmt: 'mult' },
   { id: 'multi',  tab: 'attack',  name: 'Multishot',    c0: 26, g: 1.15,  max: 50, val: (L) => 0.01 * L, fmt: 'pct' },
@@ -1065,7 +1069,7 @@ function spawn(run, type, rand, at) {
   const hp = enemyHp(w, run.tier) * T.hp * (elite ? 3 : 1) * ((run.mod && run.mod.hp) || 1);
   const e = {
     id: run.nextId++, type, elite,
-    x: at ? at.x : Math.cos(a) * (R + 18), y: at ? at.y : Math.sin(a) * (R + 18),
+    x: at ? at.x : Math.cos(a) * (arenaR(run) + 18), y: at ? at.y : Math.sin(a) * (arenaR(run) + 18),
     hp, maxHp: hp, dmg: enemyDmg(w, run.tier) * T.dmg * (elite ? 2 : 1), speed: T.speed * (0.9 + rand() * 0.2) * ((run.mod && run.mod.speed) || 1),
     size: T.size * (elite ? 1.2 : 1), atkT: 0.4, spin: rand() * 6, push: 0, blinkT: 3,
   };
@@ -1198,7 +1202,7 @@ export function useAbility(run, meta, id, events = [], rand = Math.random) {
     run.rings.push({ r: 0, max: rad, t: 0, kind: 'pulse' });
   } else if (id === 'freeze') {
     run.fx.freeze = dur(6);
-    run.rings.push({ r: 0, max: R, t: 0, kind: 'freeze' });
+    run.rings.push({ r: 0, max: arenaR(run), t: 0, kind: 'freeze' });
   } else if (id === 'overdrive') {
     run.fx.overdrive = dur(8);
   } else if (id === 'repair') {
@@ -1240,6 +1244,7 @@ export function step(run, meta, dt, rand = Math.random) {
   if (run.over) return events;
   run.time += dt;
   const s = stats(run, meta);
+  run.arena = Math.max(arenaR(run), arenaFor(s.range));
 
   // timers
   for (const k in run.cds) if (run.cds[k] > 0) run.cds[k] = Math.max(0, run.cds[k] - dt);
